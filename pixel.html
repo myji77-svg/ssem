@@ -1,1163 +1,888 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>이진수 픽셀 암호 해독기 - AI & SW 교실</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Font Awesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Nanum+Neo:wght@400;700;800&family=Outfit:wght@400;600;800&display=swap');
-    
-    body {
-      font-family: 'Nanum Neo', 'Outfit', sans-serif;
-      background-color: #f0f4f8;
-    }
-
-    /* 픽셀 그리드 호버 및 전환 효과 */
-    .pixel-cell {
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    
-    .pixel-cell:active {
-      transform: scale(0.9);
-    }
-
-    /* 반짝이는 성공 애니메이션 */
-    @keyframes success-pulse {
-      0%, 100% { transform: scale(1); filter: brightness(1); }
-      50% { transform: scale(1.05); filter: brightness(1.2) drop-shadow(0 0 15px rgba(59, 130, 246, 0.6)); }
-    }
-    
-    .success-active {
-      animation: success-pulse 1s ease-in-out infinite;
-    }
-
-    /* 슬라이드 및 페이드 인 애니메이션 */
-    @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .animate-fade-in {
-      animation: fadeInUp 0.5s ease-out forwards;
-    }
-
-    /* 3D 네온 버튼 스타일 */
-    .btn-3d {
-      position: relative;
-      transition: all 0.1s ease;
-      top: 0;
-    }
-    .btn-3d:active {
-      top: 3px;
-      box-shadow: 0 1px 0px rgba(0,0,0,0.2);
-    }
-
-    /* 스크롤바 커스텀 */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #f1f1f1;
-      border-radius: 10px;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 10px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #94a3b8;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>우주 탐험대! 이진수 픽셀 암호 해독기</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome (For Icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts for Kids -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Nanum+Pen_Script&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Jua', 'Nanum Pen Script', sans-serif;
+            background: linear-gradient(135deg, #1e1b4b 0%, #311042 50%, #111827 100%);
+        }
+        .pixel-cell {
+            aspect-ratio: 1 / 1;
+            transition: all 0.2s ease-in-out;
+        }
+        .pixel-cell:hover {
+            transform: scale(1.05);
+            z-index: 10;
+        }
+        /* Stars animation background */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background-image: 
+                radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px),
+                radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px),
+                radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 40px);
+            background-size: 550px 550px, 350px 350px, 250px 250px;
+            background-position: 0 0, 40px 60px, 130px 270px;
+            opacity: 0.4;
+            z-index: 0;
+        }
+    </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between text-slate-800 bg-slate-50 overflow-x-hidden">
+<body class="min-h-screen text-white flex flex-col items-center justify-between p-4 relative overflow-x-hidden">
+    <div class="stars"></div>
 
-  <!-- Confetti Canvas -->
-  <canvas id="confetti-canvas" class="fixed top-0 left-0 w-full h-full pointer-events-none z-50"></canvas>
-
-  <!-- Header -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm transition-all">
-    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center space-x-3">
-        <div class="bg-gradient-to-tr from-blue-600 to-indigo-600 text-white p-2.5 rounded-xl shadow-md shadow-blue-200">
-          <i class="fa-solid fa-microchip text-xl animate-pulse"></i>
-        </div>
-        <div>
-          <h1 class="text-lg md:text-xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            이진수 픽셀 암호 해독기
-          </h1>
-          <p class="text-xs text-slate-500 font-medium hidden md:block">컴퓨터가 이미지를 그리는 원리 (0과 1의 암호학)</p>
-        </div>
-      </div>
-      
-      <div class="flex items-center space-x-2">
-        <button onclick="toggleGuideModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs md:text-sm font-semibold transition-all">
-          <i class="fa-regular fa-lightbulb text-yellow-500"></i>
-          <span>학습 원리 보기</span>
-        </button>
-        <button onclick="resetAllMissionsConfirm()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-red-100 bg-red-50 hover:bg-red-100 text-red-600 text-xs md:text-sm font-semibold transition-all">
-          <i class="fa-solid fa-rotate-right"></i>
-          <span class="hidden sm:inline">전체 리셋</span>
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <!-- Main Content Area -->
-  <main class="flex-grow max-w-6xl w-full mx-auto p-4 md:py-8 flex flex-col gap-6 animate-fade-in">
-    
-    <!-- Mission Progress Road Map -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-2">
-        <div class="flex items-center space-x-2">
-          <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-1 rounded-full uppercase">Progression</span>
-          <h2 class="font-bold text-slate-700 text-sm">미션 선택 로드맵</h2>
-        </div>
-        <span id="overall-progress-text" class="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">완료: 0/13</span>
-      </div>
-      <div class="grid grid-cols-7 sm:grid-cols-13 gap-2" id="mission-map-container">
-        <!-- Generated Dynamically -->
-      </div>
-    </div>
-
-    <!-- Active Mission Container -->
-    <div id="game-active-layout" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-      
-      <!-- Left side: Information, controls and Blueprint -->
-      <div class="lg:col-span-5 space-y-6">
+    <!-- Main Container -->
+    <div class="w-full max-w-5xl z-10 flex flex-col gap-6 my-auto">
         
-        <!-- Mission Info Card -->
-        <div class="bg-gradient-to-br from-indigo-900 to-slate-900 text-white rounded-2xl p-5 shadow-xl shadow-slate-200 relative overflow-hidden">
-          <div class="absolute -right-10 -bottom-10 opacity-10 text-[120px] pointer-events-none">
-            <i class="fa-solid fa-cubes"></i>
-          </div>
-          <div class="flex items-center justify-between mb-4">
-            <span id="mission-badge" class="bg-blue-500 text-white text-xs font-black tracking-widest px-3 py-1 rounded-full">MISSION 01</span>
-            <div class="flex items-center space-x-1.5 text-xs text-indigo-200 font-semibold">
-              <i class="fa-solid fa-circle-check text-emerald-400" id="mission-status-icon"></i>
-              <span id="mission-status-text">진행 중</span>
+        <!-- Header Section -->
+        <header class="text-center flex flex-col items-center justify-center gap-2">
+            <div class="flex items-center gap-3">
+                <span class="text-4xl animate-bounce">🚀</span>
+                <h1 class="text-4xl md:text-5xl text-yellow-300 drop-shadow-[0_4px_6px_rgba(0,0,0,0.6)] tracking-wider">
+                    우주 이진수 픽셀 암호 해독기
+                </h1>
+                <span class="text-4xl animate-bounce delay-100">👾</span>
             </div>
-          </div>
-          <h3 id="mission-title" class="text-2xl font-black mb-2 text-white">미션 제목</h3>
-          <p id="mission-desc" class="text-indigo-200 text-sm leading-relaxed mb-4">미션 설명글이 노출되는 자리입니다.</p>
-          
-          <!-- Mission Quick Nav Controls -->
-          <div class="flex items-center justify-between pt-4 border-t border-indigo-800/60">
-            <button id="btn-prev" onclick="changeMission(-1)" class="flex items-center space-x-2 text-sm text-indigo-200 hover:text-white transition">
-              <i class="fa-solid fa-chevron-left"></i>
-              <span>이전 미션</span>
-            </button>
-            <span id="mission-indicator" class="text-sm font-bold font-mono tracking-widest bg-slate-800/80 px-3 py-1 rounded-lg">1 / 13</span>
-            <button id="btn-next" onclick="changeMission(1)" class="flex items-center space-x-2 text-sm text-indigo-200 hover:text-white transition">
-              <span>다음 미션</span>
-              <i class="fa-solid fa-chevron-right"></i>
-            </button>
-          </div>
-        </div>
-
-        <!-- Binary Blueprint Grid Panel -->
-        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center space-x-2">
-              <span class="flex h-3 w-3 relative">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
-              </span>
-              <h3 class="font-extrabold text-slate-800 text-md">암호 도면 데이터 <span class="text-xs font-mono text-blue-500">[ 5 x 5 BITMAP ]</span></h3>
-            </div>
-            <button onclick="toggleShowAnswers()" id="btn-toggle-answer" class="text-xs font-bold text-slate-500 hover:text-blue-600 flex items-center space-x-1 border border-slate-200 px-2 py-1 rounded-md hover:bg-slate-50 transition">
-              <i class="fa-regular fa-eye"></i>
-              <span id="toggle-answer-text">정답 힌트 보기</span>
-            </button>
-          </div>
-          
-          <p class="text-xs text-slate-500 mb-4 bg-slate-50 p-2.5 rounded-lg leading-relaxed">
-            <i class="fa-solid fa-circle-info text-blue-500 mr-1"></i>
-            도면의 숫자를 직접 터치해 매칭되는 이진수 비트라인을 확인해 보세요. <strong class="text-slate-700">1은 유효 비트(색칠)</strong>, <strong class="text-slate-400">0은 무효 비트(여백)</strong>를 뜻합니다.
-          </p>
-
-          <!-- Blueprint Grid -->
-          <div id="blueprint-grid" class="grid grid-cols-5 gap-2 max-w-[280px] mx-auto bg-slate-100 p-3 rounded-2xl border border-slate-200">
-            <!-- Filled dynamically -->
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Right side: Interaction canvas and controls -->
-      <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between h-full min-h-[550px]">
-        
-        <div>
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2 mb-6">
-            <div>
-              <h3 class="font-extrabold text-slate-800 text-lg">픽셀 미션 격자 캔버스 <span class="text-xs font-mono text-emerald-500">[ 5 x 5 GRID ]</span></h3>
-              <p class="text-xs text-slate-400 mt-0.5">왼쪽 도면 암호를 해석해서 오른쪽 격자에 색을 칠하세요!</p>
-            </div>
-            
-            <!-- Quick Fill Color / Eraser Chooser -->
-            <div class="flex items-center space-x-2">
-              <span class="text-xs font-bold text-slate-500">그리기 도구:</span>
-              <div class="flex items-center space-x-1.5">
-                <!-- Color Pens -->
-                <button onclick="changePenMode('color', 'bg-slate-800', 'slate')" class="w-6 h-6 rounded-full bg-slate-800 border-2 ring-2 ring-slate-800/20" id="color-slate" title="검정색 펜"></button>
-                <button onclick="changePenMode('color', 'bg-blue-600', 'blue')" class="w-6 h-6 rounded-full bg-blue-600 border-2" id="color-blue" title="파란색 펜"></button>
-                <button onclick="changePenMode('color', 'bg-emerald-600', 'emerald')" class="w-6 h-6 rounded-full bg-emerald-600 border-2" id="color-emerald" title="초록색 펜"></button>
-                <button onclick="changePenMode('color', 'bg-rose-500', 'rose')" class="w-6 h-6 rounded-full bg-rose-500 border-2" id="color-rose" title="분홍색 펜"></button>
-                <!-- Part Eraser Tool -->
-                <div class="w-[1px] h-4 bg-slate-300 mx-1"></div>
-                <button onclick="changePenMode('eraser', '', 'eraser')" class="w-8 h-8 rounded-xl bg-pink-50 border border-pink-200 hover:bg-pink-100 text-pink-600 flex items-center justify-center transition" id="tool-eraser" title="지우개 펜">
-                  <i class="fa-solid fa-eraser text-sm"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Interaction Canvas Container -->
-          <div class="flex justify-center items-center py-4 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 mb-6">
-            <div id="interactive-grid" class="grid grid-cols-5 gap-2.5 w-full max-w-[320px] aspect-square p-4 bg-white shadow-md rounded-2xl">
-              <!-- Grid cells generated dynamically -->
-            </div>
-          </div>
-        </div>
-
-        <!-- Canvas Footer Action Buttons -->
-        <div class="space-y-3">
-          <div class="grid grid-cols-2 gap-4">
-            <button onclick="clearCurrentCanvas()" class="py-3.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition duration-150 flex items-center justify-center space-x-2 border border-slate-200 btn-3d">
-              <i class="fa-solid fa-trash-can text-lg"></i>
-              <span>전체 지우기</span>
-            </button>
-            <button onclick="gradeCurrentMission()" class="py-3.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl shadow-lg shadow-blue-200 hover:shadow-blue-300 transition duration-150 flex items-center justify-center space-x-2 btn-3d">
-              <i class="fa-solid fa-clipboard-check text-lg"></i>
-              <span>채점하기</span>
-            </button>
-          </div>
-          
-          <div class="bg-amber-50 border border-amber-200/60 rounded-xl p-3 flex items-start space-x-2.5">
-            <i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5"></i>
-            <p class="text-xs text-amber-800 leading-relaxed font-medium">
-              격자 캔버스의 칸을 클릭하거나 드래그하면 색이 칠해집니다. 틀린 칸은 <strong class="text-pink-600 font-bold"><i class="fa-solid fa-eraser"></i> 지우개 도구</strong>를 선택해 슥슥 문지르거나 클릭해서 지울 수 있습니다.
+            <p class="text-purple-200 text-lg md:text-xl max-w-2xl bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-purple-500/30">
+                왼쪽의 이진수(0과 1) 암호를 해독해서 오른쪽 격자에 멋진 그림을 그려봐요! 
+                <span class="text-yellow-300">1은 색칠하는 곳, 0은 비워두는 곳!</span>
             </p>
-          </div>
-        </div>
+        </header>
 
-      </div>
-
-    </div>
-
-    <!-- Celebration Screen (Hidden by Default) -->
-    <div id="all-clear-layout" class="hidden bg-white border border-slate-200 rounded-3xl p-8 md:p-12 text-center max-w-2xl mx-auto shadow-xl space-y-6 my-8 animate-fade-in">
-      <div class="relative inline-block">
-        <div class="absolute inset-0 bg-yellow-400 rounded-full blur-xl opacity-30 animate-pulse"></div>
-        <span class="text-7xl md:text-8xl block relative">🏆</span>
-      </div>
-      <div class="space-y-3">
-        <h2 class="text-3xl md:text-4xl font-black text-slate-800 tracking-tight">올 미션 클리어! 🎉</h2>
-        <p class="text-slate-500 md:text-md max-w-md mx-auto leading-relaxed">
-          대단합니다! 총 13개의 디지털 암호를 완벽하게 해독했습니다. 마법의 이진수 픽셀 암호를 완전히 지배하여 디지털 그래픽 마스터가 되셨습니다!
-        </p>
-      </div>
-
-      <!-- Completion Summary Badge Board -->
-      <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 max-w-md mx-auto">
-        <h4 class="font-extrabold text-slate-700 text-sm mb-3">암호 해독 마스터 완수 기록</h4>
-        <div class="flex justify-center items-center gap-3">
-          <div class="text-center px-4 py-2 bg-white rounded-xl shadow-sm border border-slate-100 w-1/2">
-            <span class="block text-xs font-bold text-slate-400">성공 지수</span>
-            <span class="text-xl font-black text-emerald-600">100% SUCCESS</span>
-          </div>
-          <div class="text-center px-4 py-2 bg-white rounded-xl shadow-sm border border-slate-100 w-1/2">
-            <span class="block text-xs font-bold text-slate-400">해독 암호 개수</span>
-            <span class="text-xl font-black text-indigo-600">13 / 13개</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
-        <button onclick="resetAllMissionsConfirm()" class="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-2xl shadow-lg shadow-blue-200 transition-all btn-3d flex items-center justify-center space-x-2">
-          <i class="fa-solid fa-rotate-left"></i>
-          <span>다시 처음부터 도전하기 🚀</span>
-        </button>
-      </div>
-    </div>
-
-  </main>
-
-  <!-- Educational Mini Guide Modal (Dialog) -->
-  <div id="guide-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-100 animate-fade-in">
-      <div class="bg-indigo-900 text-white p-6 relative">
-        <button onclick="toggleGuideModal()" class="absolute top-4 right-4 text-indigo-300 hover:text-white transition text-xl">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-        <h3 class="text-xl font-extrabold flex items-center space-x-2">
-          <i class="fa-solid fa-graduation-cap text-yellow-400"></i>
-          <span>이진수와 픽셀 아트의 학습 원리</span>
-        </h3>
-        <p class="text-indigo-200 text-xs mt-1">컴퓨터 그래픽의 가장 기초적인 비트맵 표현 구조</p>
-      </div>
-      <div class="p-6 space-y-4 text-slate-600 text-sm overflow-y-auto max-h-[70vh]">
-        <div class="space-y-2">
-          <h4 class="font-bold text-slate-800 flex items-center space-x-1.5">
-            <span class="w-1.5 h-4 bg-indigo-600 rounded-full inline-block"></span>
-            <span>1. 픽셀(Pixel)이란 무엇일까요?</span>
-          </h4>
-          <p class="leading-relaxed text-xs">
-            픽셀(Pixel)은 화소(Picture Element)의 줄임말로, 컴퓨터 화면을 구성하는 가장 작은 사각형 단위입니다. 모니터나 스마트폰 화면은 수많은 작은 픽셀들이 모여서 하나의 완전한 이미지를 만들어 냅니다.
-          </p>
-        </div>
-
-        <div class="space-y-2">
-          <h4 class="font-bold text-slate-800 flex items-center space-x-1.5">
-            <span class="w-1.5 h-4 bg-indigo-600 rounded-full inline-block"></span>
-            <span>2. 컴퓨터가 흑백 이미지를 저장하는 방법</span>
-          </h4>
-          <p class="leading-relaxed text-xs">
-            컴퓨터는 모든 데이터를 0과 1이라는 '이진수(Binary)'로만 이해할 수 있습니다. 흑백 이미지의 경우, 색을 칠하지 않을 부분은 <strong>0(OFF/빛이 꺼짐)</strong>으로, 색을 칠할 부분은 <strong>1(ON/빛이 켜짐)</strong>로 기억해 도면을 형성합니다.
-          </p>
-        </div>
-
-        <div class="space-y-2">
-          <h4 class="font-bold text-slate-800 flex items-center space-x-1.5">
-            <span class="w-1.5 h-4 bg-indigo-600 rounded-full inline-block"></span>
-            <span>3. 비트맵(Bitmap) 구조의 이해</span>
-          </h4>
-          <p class="leading-relaxed text-xs">
-            이번에 풀어보는 미션들은 5행 5열(총 25픽셀) 크기의 비트맵 격자입니다. 각 행마다 5개의 비트정보가 모여 이미지를 완성하게 됩니다. 이것이 우리가 스마트폰에서 고해상도 사진을 보게 되는 기본 원리입니다.
-          </p>
-        </div>
-
-        <div class="bg-indigo-50 rounded-xl p-4 border border-indigo-100">
-          <span class="block text-xs font-bold text-indigo-800 mb-1">👩‍🏫 SW 강사님을 위한 수업 지도 Tip</span>
-          <p class="text-xs text-indigo-900 leading-relaxed">
-            학생들에게 왼쪽 암호 도면을 소리 내어 읽게 하거나(예: "첫째 줄 일 영 일 영 일!"), 친구와 짝을 지어 한 명은 이진수 코드를 불러주고 한 명은 그리는 오프라인 매체 번역 놀이로 변형하여 활용하시면 한 단계 업그레이드된 피지컬 컴퓨팅 수업이 가능합니다.
-          </p>
-        </div>
-      </div>
-      <div class="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-end">
-        <button onclick="toggleGuideModal()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow transition">
-          알겠습니다! 학습 시작하기
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Dialog / Message Modal (Alert replacement) -->
-  <div id="alert-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl max-w-xs w-full p-6 text-center shadow-xl border border-slate-100 animate-fade-in">
-      <div id="alert-icon-container" class="mx-auto w-12 h-12 rounded-full flex items-center justify-center text-2xl mb-4">
-        <!-- Built Dynamically -->
-      </div>
-      <h4 id="alert-title" class="font-extrabold text-slate-800 text-lg mb-2">알림 타이틀</h4>
-      <p id="alert-desc" class="text-slate-500 text-xs leading-relaxed mb-6">상세 알림 내용입니다.</p>
-      <button onclick="closeAlertModal()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm rounded-xl transition shadow">
-        확인
-      </button>
-    </div>
-  </div>
-
-  <!-- Footer -->
-  <footer class="bg-white border-t border-slate-200 mt-12 py-6 text-center text-xs text-slate-400">
-    <div class="max-w-6xl mx-auto px-4 space-y-1">
-      <p class="font-semibold text-slate-500">© 2026 이진수 픽셀 암호 해독기 (SW Edu Edition)</p>
-      <p>본 교구는 AI & SW 교육용 보조 학습 자료로 개발되었으며 상업적 배포를 금합니다.</p>
-    </div>
-  </footer>
-
-  <script>
-    // --- SOUND SYNTHESIS SYSTEM (Web Audio API) ---
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-    function playSound(type) {
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-      
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      
-      const now = audioCtx.currentTime;
-
-      if (type === 'click') {
-        // Soft synth blip
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(587.33, now); // D5
-        osc.frequency.exponentialRampToValueAtTime(1174.66, now + 0.08); // D6
-        gain.gain.setValueAtTime(0.15, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.1);
-        osc.start(now);
-        osc.stop(now + 0.1);
-      } else if (type === 'erase') {
-        // Shorter scratchy click sound for eraser
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(330, now); // E4
-        osc.frequency.exponentialRampToValueAtTime(150, now + 0.06);
-        gain.gain.setValueAtTime(0.12, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.07);
-        osc.start(now);
-        osc.stop(now + 0.07);
-      } else if (type === 'success') {
-        // Uplifting chime / fanfare
-        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
-        notes.forEach((freq, idx) => {
-          const subOsc = audioCtx.createOscillator();
-          const subGain = audioCtx.createGain();
-          subOsc.connect(subGain);
-          subGain.connect(audioCtx.destination);
-          
-          subOsc.type = 'triangle';
-          subOsc.frequency.setValueAtTime(freq, now + idx * 0.08);
-          subGain.gain.setValueAtTime(0, now);
-          subGain.gain.linearRampToValueAtTime(0.15, now + idx * 0.08 + 0.02);
-          subGain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.4);
-          
-          subOsc.start(now + idx * 0.08);
-          subOsc.stop(now + idx * 0.08 + 0.45);
-        });
-      } else if (type === 'fail') {
-        // Sad buzzer
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(180, now);
-        osc.frequency.linearRampToValueAtTime(100, now + 0.35);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.4);
-        osc.start(now);
-        osc.stop(now + 0.4);
-      } else if (type === 'victory') {
-        // Full chord epic fanfare
-        const chords = [
-          [261.63, 329.63, 392.00], // C major
-          [349.23, 440.00, 523.25], // F major
-          [392.00, 493.88, 587.33], // G major
-          [523.25, 659.25, 783.99, 1046.50] // C major high
-        ];
-        
-        chords.forEach((chord, step) => {
-          chord.forEach(freq => {
-            const subOsc = audioCtx.createOscillator();
-            const subGain = audioCtx.createGain();
-            subOsc.connect(subGain);
-            subGain.connect(audioCtx.destination);
+        <!-- Status & Level Selector / Timer -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center bg-indigo-950/80 backdrop-blur-md p-4 rounded-2xl border-2 border-indigo-500/40 shadow-2xl">
+            <!-- Level Select -->
+            <div class="flex items-center gap-2 justify-center md:justify-start">
+                <span class="text-yellow-400 text-lg"><i class="fa-solid fa-map"></i> 미션 선택:</span>
+                <select id="stageSelect" class="bg-indigo-900 text-yellow-300 border-2 border-yellow-400 rounded-lg px-3 py-1 font-bold text-lg focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                    <!-- Loaded dynamically -->
+                </select>
+            </div>
             
-            subOsc.type = 'sine';
-            subOsc.frequency.setValueAtTime(freq, now + step * 0.25);
-            subGain.gain.setValueAtTime(0, now);
-            subGain.gain.linearRampToValueAtTime(0.12, now + step * 0.25 + 0.05);
-            subGain.gain.exponentialRampToValueAtTime(0.001, now + step * 0.25 + 0.6);
+            <!-- Timer & Move Counter -->
+            <div class="flex justify-center items-center gap-6">
+                <div class="flex items-center gap-2 text-xl bg-black/30 px-4 py-2 rounded-xl border border-teal-500/30">
+                    <span class="text-teal-400 animate-pulse"><i class="fa-solid fa-clock"></i></span>
+                    <span id="timer" class="font-mono text-2xl text-teal-300">00:00</span>
+                </div>
+                <div class="flex items-center gap-2 text-xl bg-black/30 px-4 py-2 rounded-xl border border-pink-500/30">
+                    <span class="text-pink-400"><i class="fa-solid fa-paintbrush"></i></span>
+                    <span id="clickCounter" class="text-pink-300 font-mono text-2xl">0</span>
+                </div>
+            </div>
+
+            <!-- Hint/Sound Toggles -->
+            <div class="flex justify-center md:justify-end gap-3">
+                <button id="hintBtn" class="bg-amber-500 hover:bg-amber-400 text-white font-bold px-4 py-2 rounded-xl transition duration-150 transform hover:scale-105 flex items-center gap-2 shadow-lg shadow-amber-500/20">
+                    <i id="hintIcon" class="fa-solid fa-eye-slash"></i> <span id="hintBtnText">힌트 보기</span>
+                </button>
+                <button id="soundBtn" class="bg-indigo-800 hover:bg-indigo-700 text-indigo-200 font-bold p-2.5 rounded-xl transition duration-150 transform hover:scale-105">
+                    <i id="soundIcon" class="fa-solid fa-volume-high text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Gameboard Area -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
             
-            subOsc.start(now + step * 0.25);
-            subOsc.stop(now + step * 0.25 + 0.7);
-          });
-        });
-      }
-    }
+            <!-- Left Side: Cipher Map -->
+            <div class="flex flex-col gap-3 bg-slate-900/90 backdrop-blur-md p-6 rounded-3xl border-4 border-purple-500/50 shadow-2xl relative">
+                <div class="absolute -top-4 left-6 bg-purple-600 text-white font-bold px-4 py-1 rounded-full text-sm uppercase tracking-widest border border-purple-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-user-astronaut"></i> Code Map
+                </div>
+                
+                <div class="flex justify-between items-center mt-2">
+                    <h3 class="text-2xl text-purple-300 flex items-center gap-2">
+                        <i class="fa-solid fa-barcode"></i> 암호 도면 (8 × 8)
+                    </h3>
+                    <span class="text-sm bg-purple-950 px-2.5 py-1 rounded-md text-purple-300 border border-purple-800/60">행/열 인덱스 제공</span>
+                </div>
 
-    // --- MISSION DATA (13 Levels) ---
-    const missions = [
-      {
-        id: 1,
-        title: "두근두근 빨간 하트",
-        desc: "이진수 픽셀 세계에 오신 여러분을 환영합니다! 첫 번째 암호는 사랑이 가득 담긴 하트 기호입니다. 0과 1을 번역해 예쁜 모양을 찾아보세요.",
-        blueprint: [
-          [0, 1, 0, 1, 0],
-          [1, 1, 1, 1, 1],
-          [1, 1, 1, 1, 1],
-          [0, 1, 1, 1, 0],
-          [0, 0, 1, 0, 0]
-        ]
-      },
-      {
-        id: 2,
-        title: "생글생글 웃는 얼굴",
-        desc: "미소는 주변의 분위기를 밝게 만들죠. 이번 미션의 암호는 생글생글 웃고 있는 스마일 미니 페이스입니다. 눈과 입의 픽셀 배치를 확인해 보세요.",
-        blueprint: [
-          [0, 1, 0, 1, 0],
-          [0, 0, 0, 0, 0],
-          [1, 0, 0, 0, 1],
-          [0, 1, 1, 1, 0],
-          [0, 0, 0, 0, 0]
-        ]
-      },
-      {
-        id: 3,
-        title: "정답 확인 체크!",
-        desc: "컴퓨터 알고리즘이 성공했을 때 띄우는 체크(Check) 심볼입니다. 사선으로 매끄럽게 연결되는 화소의 연속성을 그려보세요.",
-        blueprint: [
-          [0, 0, 0, 0, 1],
-          [0, 0, 0, 1, 0],
-          [1, 0, 1, 0, 0],
-          [0, 1, 0, 0, 0],
-          [0, 0, 0, 0, 0]
-        ]
-      },
-      {
-        id: 4,
-        title: "하늘을 향한 화살표",
-        desc: "화살표는 방향을 안내할 때 널리 쓰이는 기호입니다. 맨 꼭대기 픽셀을 중심으로 양쪽 날개와 기둥이 만들어지는 규칙성을 분석해보세요.",
-        blueprint: [
-          [0, 0, 1, 0, 0],
-          [0, 1, 1, 1, 0],
-          [1, 0, 1, 0, 1],
-          [0, 0, 1, 0, 0],
-          [0, 0, 1, 0, 0]
-        ]
-      },
-      {
-        id: 5,
-        title: "더하기 십자가",
-        desc: "더하기(+) 연산자로 컴퓨터 수학 계산의 기초가 되는 형태입니다. 대칭이 이루어지는 구조를 정확하게 해독하여 완성해 주십시오.",
-        blueprint: [
-          [0, 0, 1, 0, 0],
-          [0, 0, 1, 0, 0],
-          [1, 1, 1, 1, 1],
-          [0, 0, 1, 0, 0],
-          [0, 0, 1, 0, 0]
-        ]
-      },
-      {
-        id: 6,
-        title: "알파벳 첫 글자 'A'",
-        desc: "알파벳의 여정은 'A'에서 시작합니다. 외곽 테두리를 형성하고 가운데 가로지르는 대들보 픽셀이 결합되어 'A'를 형성합니다.",
-        blueprint: [
-          [0, 1, 1, 1, 0],
-          [1, 0, 0, 0, 1],
-          [1, 1, 1, 1, 1],
-          [1, 0, 0, 0, 1],
-          [1, 0, 0, 0, 1]
-        ]
-      },
-      {
-        id: 7,
-        title: "스위트 홈 미니 하우스",
-        desc: "포근한 집 모양의 인쇄 픽셀입니다. 세모난 지붕과 든든하게 받쳐주는 두 개의 기둥 벽체가 완벽한 이진수로 설계되어 있습니다.",
-        blueprint: [
-          [0, 0, 1, 0, 0],
-          [0, 1, 0, 1, 0],
-          [1, 1, 1, 1, 1],
-          [1, 0, 1, 0, 1],
-          [1, 1, 1, 1, 1]
-        ]
-      },
-      {
-        id: 8,
-        title: "우주의 빛나는 별",
-        desc: "밤하늘에 영롱하게 반짝이는 별이나 아스테리스크(*) 특수문자 형태입니다. 중심점에서 사방으로 퍼져나가는 대칭 암호라인입니다.",
-        blueprint: [
-          [1, 0, 1, 0, 1],
-          [0, 1, 1, 1, 0],
-          [1, 1, 0, 1, 1],
-          [0, 1, 1, 1, 0],
-          [1, 0, 1, 0, 1]
-        ]
-      },
-      {
-        id: 9,
-        title: "레트로 외계인 인베이더",
-        desc: "옛날 레트로 고전 게임에 자주 출몰하던 스페이스 인베이더 외계인의 모습을 재현한 재치 넘치는 모양입니다. 눈과 더듬이를 완성해보세요.",
-        blueprint: [
-          [1, 0, 0, 0, 1],
-          [0, 1, 1, 1, 0],
-          [1, 1, 1, 1, 1],
-          [1, 0, 1, 0, 1],
-          [0, 1, 0, 1, 0]
-        ]
-      },
-      {
-        id: 10,
-        title: "알파벳 'H'",
-        desc: "우뚝 선 두 기둥과 그것을 견고하게 연결해주는 다리로 완성되는 대문자 'H' 형태의 이진수 디지털 그래픽입니다.",
-        blueprint: [
-          [1, 0, 0, 0, 1],
-          [1, 0, 0, 0, 1],
-          [1, 1, 1, 1, 1],
-          [1, 0, 0, 0, 1],
-          [1, 0, 0, 0, 1]
-        ]
-      },
-      {
-        id: 11,
-        title: "신비로운 다이아몬드",
-        desc: "값비싸고 아름다운 다이아몬드 보석 모양입니다. 상하좌우가 아름답게 대치되는 육각 픽셀 마름모꼴을 그려주세요.",
-        blueprint: [
-          [0, 0, 1, 0, 0],
-          [0, 1, 0, 1, 0],
-          [1, 0, 0, 0, 1],
-          [0, 1, 0, 1, 0],
-          [0, 0, 1, 0, 0]
-        ]
-      },
-      {
-        id: 12,
-        title: "네모난 보물상자",
-        desc: "완벽한 정사각형 모양의 테두리로 구성되어 있습니다. 가운데 핵심 비어있는 여백(0)을 제외하고 바깥쪽 비트(1)만 가동시키는 원리입니다.",
-        blueprint: [
-          [1, 1, 1, 1, 1],
-          [1, 0, 0, 0, 1],
-          [1, 0, 0, 0, 1],
-          [1, 0, 0, 0, 1],
-          [1, 1, 1, 1, 1]
-        ]
-      },
-      {
-        id: 13,
-        title: "마지막 단계: 영광의 왕관",
-        desc: "마지막 난이도 높은 암호 해독 미션입니다. 아름다운 보석 박힌 왕관의 뾰족한 세 끝자리와 묵직한 하단 몸통을 멋지게 복제해보세요!",
-        blueprint: [
-          [1, 0, 1, 0, 1],
-          [1, 0, 1, 0, 1],
-          [1, 1, 1, 1, 1],
-          [1, 1, 1, 1, 1],
-          [1, 1, 1, 1, 1]
-        ]
-      }
-    ];
+                <!-- 8x8 Decoder Map View -->
+                <div class="grid grid-cols-9 gap-1 bg-slate-950/90 p-4 rounded-2xl border-2 border-purple-900/60 flex-grow justify-center items-center">
+                    <!-- Header Index -->
+                    <div class="text-center font-bold text-purple-400 text-sm"></div>
+                    <div class="text-center font-bold text-purple-400 text-sm">1열</div>
+                    <div class="text-center font-bold text-purple-400 text-sm">2열</div>
+                    <div class="text-center font-bold text-purple-400 text-sm">3열</div>
+                    <div class="text-center font-bold text-purple-400 text-sm">4열</div>
+                    <div class="text-center font-bold text-purple-400 text-sm">5열</div>
+                    <div class="text-center font-bold text-purple-400 text-sm">6열</div>
+                    <div class="text-center font-bold text-purple-400 text-sm">7열</div>
+                    <div class="text-center font-bold text-purple-400 text-sm">8열</div>
 
-    // --- APP STATE ENGINE ---
-    let currentMissionIndex = 0;
-    let completedMissions = JSON.parse(localStorage.getItem('pixel_completed_missions')) || [];
-    let userGrids = JSON.parse(localStorage.getItem('pixel_user_grids')) || {};
-    
-    // Tools Configuration
-    let activeTool = 'color'; // 'color' or 'eraser'
-    let activeColorClass = 'bg-slate-800';
-    let activeColorName = 'slate';
-    
-    let showAnswers = false;
-    let isDrawing = false; // Drag & Draw feature
+                    <!-- Rows with indices (1 to 8) -->
+                    <div id="cipherContainer" class="col-span-9 grid grid-cols-9 gap-1 w-full h-full">
+                        <!-- Loaded dynamically via JS -->
+                    </div>
+                </div>
 
-    // --- DOM INITIALIZER ---
-    window.onload = function() {
-      // Load current mission index if exists
-      const savedIndex = localStorage.getItem('pixel_current_index');
-      if (savedIndex !== null) {
-        currentMissionIndex = parseInt(savedIndex);
-      }
-      
-      initApp();
-      
-      // Initialize Drag to draw event listeners on body
-      document.body.addEventListener('mouseup', () => {
-        isDrawing = false;
-      });
-      document.body.addEventListener('touchend', () => {
-        isDrawing = false;
-      });
-    };
+                <div class="text-xs text-slate-400 text-center flex items-center justify-center gap-1.5 mt-1">
+                    <i class="fa-solid fa-circle-info"></i> 힌트를 켜면 색칠되어야 할 곳(1)이 무지개빛으로 반짝여요!
+                </div>
+            </div>
 
-    function initApp() {
-      renderMissionMap();
-      renderActiveMission();
-      updateOverallProgress();
-      updateToolSelectorUI();
-    }
+            <!-- Right Side: Pixel Drawing Canvas -->
+            <div class="flex flex-col gap-3 bg-slate-900/90 backdrop-blur-md p-6 rounded-3xl border-4 border-teal-500/50 shadow-2xl relative">
+                <div class="absolute -top-4 left-6 bg-teal-600 text-white font-bold px-4 py-1 rounded-full text-sm uppercase tracking-widest border border-teal-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-palette"></i> Grid Canvas
+                </div>
 
-    // --- RENDER FUNCTIONS ---
-    function renderMissionMap() {
-      const container = document.getElementById('mission-map-container');
-      container.innerHTML = '';
-      
-      missions.forEach((mission, idx) => {
-        const isCurrent = idx === currentMissionIndex;
-        const isCompleted = completedMissions.includes(mission.id);
-        
-        let btnClass = 'flex flex-col items-center justify-center p-2 rounded-xl border text-xs font-bold transition duration-150 relative ';
-        if (isCurrent) {
-          btnClass += 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 ring-2 ring-indigo-300';
-        } else if (isCompleted) {
-          btnClass += 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100';
-        } else {
-          btnClass += 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50';
-        }
+                <div class="flex justify-between items-center mt-2">
+                    <h3 class="text-2xl text-teal-300 flex items-center gap-2">
+                        <i class="fa-solid fa-crop-simple"></i> 픽셀 그리기 격자
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-slate-400">색상 변경:</span>
+                        <div class="flex gap-1.5" id="palette">
+                            <!-- Color palette created dynamically -->
+                        </div>
+                    </div>
+                </div>
 
-        const btn = document.createElement('button');
-        btn.className = btnClass;
-        btn.onclick = () => selectMission(idx);
-        
-        // Add tiny badge inside mapping button
-        let statusMarker = '';
-        if (isCompleted) {
-          statusMarker = '<i class="fa-solid fa-circle-check text-[10px] text-emerald-500 absolute top-1 right-1"></i>';
-        } else if (isCurrent) {
-          statusMarker = '<span class="flex h-1.5 w-1.5 absolute top-1 right-1"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span><span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-white"></span></span>';
-        }
+                <!-- 8x8 Drawing Canvas Grid -->
+                <div class="grid grid-cols-9 gap-1 bg-slate-950/90 p-4 rounded-2xl border-2 border-teal-900/60 flex-grow justify-center items-center select-none">
+                    <!-- Header Index -->
+                    <div class="text-center font-bold text-teal-400 text-sm"></div>
+                    <div class="text-center font-bold text-teal-400 text-sm">1열</div>
+                    <div class="text-center font-bold text-teal-400 text-sm">2열</div>
+                    <div class="text-center font-bold text-teal-400 text-sm">3열</div>
+                    <div class="text-center font-bold text-teal-400 text-sm">4열</div>
+                    <div class="text-center font-bold text-teal-400 text-sm">5열</div>
+                    <div class="text-center font-bold text-teal-400 text-sm">6열</div>
+                    <div class="text-center font-bold text-teal-400 text-sm">7열</div>
+                    <div class="text-center font-bold text-teal-400 text-sm">8열</div>
 
-        btn.innerHTML = `
-          ${statusMarker}
-          <span class="text-[10px] block font-mono text-opacity-80">${idx + 1}</span>
-          <span class="text-[8px] font-normal truncate max-w-full hidden sm:block">${mission.title.split(' ')[0]}</span>
-        `;
-        container.appendChild(btn);
-      });
-    }
+                    <!-- Canvas Rows with indices -->
+                    <div id="canvasContainer" class="col-span-9 grid grid-cols-9 gap-1 w-full h-full">
+                        <!-- Loaded dynamically via JS -->
+                    </div>
+                </div>
 
-    function renderActiveMission() {
-      const mission = missions[currentMissionIndex];
-      
-      // Layout Switching
-      document.getElementById('game-active-layout').classList.remove('hidden');
-      document.getElementById('all-clear-layout').classList.add('hidden');
+                <div class="text-xs text-slate-400 text-center flex items-center justify-center gap-1.5 mt-1">
+                    <i class="fa-solid fa-fingerprint"></i> 칸을 마우스로 누르거나 문질러서 색칠해보세요! 다시 누르면 지워집니다.
+                </div>
+            </div>
 
-      // Mission Info Text updates
-      document.getElementById('mission-badge').textContent = `MISSION ${String(mission.id).padStart(2, '0')}`;
-      document.getElementById('mission-title').textContent = mission.title;
-      document.getElementById('mission-desc').textContent = mission.desc;
-      document.getElementById('mission-indicator').textContent = `${mission.id} / ${missions.length}`;
+        </div>
 
-      // Set Status text
-      const isCompleted = completedMissions.includes(mission.id);
-      const icon = document.getElementById('mission-status-icon');
-      const text = document.getElementById('mission-status-text');
-      
-      if (isCompleted) {
-        icon.className = "fa-solid fa-circle-check text-emerald-400";
-        text.textContent = "암호 해독 성공!";
-        text.className = "text-emerald-300 font-bold";
-      } else {
-        icon.className = "fa-solid fa-hourglass-half text-amber-400";
-        text.textContent = "해독 진행 중";
-        text.className = "text-amber-200 font-medium";
-      }
+        <!-- Action Bar (Clear & Submit) -->
+        <div class="flex flex-col sm:flex-row gap-4 justify-center items-center mt-2">
+            <button id="clearBtn" class="w-full sm:w-auto bg-rose-600 hover:bg-rose-500 text-white font-bold text-xl px-10 py-4 rounded-2xl transition duration-150 transform hover:scale-105 flex items-center justify-center gap-2 shadow-xl shadow-rose-600/20 border-b-4 border-rose-800">
+                <i class="fa-solid fa-trash-can"></i> 전체 지우기
+            </button>
+            <button id="checkBtn" class="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-2xl px-14 py-4 rounded-2xl transition duration-150 transform hover:scale-105 flex items-center justify-center gap-3 shadow-xl shadow-emerald-500/30 border-b-4 border-emerald-700 animate-pulse">
+                <i class="fa-solid fa-circle-check text-3xl"></i> 정답 확인하기!
+            </button>
+        </div>
 
-      // Prev/Next Button logic
-      document.getElementById('btn-prev').disabled = currentMissionIndex === 0;
-      document.getElementById('btn-prev').style.opacity = currentMissionIndex === 0 ? '0.4' : '1';
-      document.getElementById('btn-next').disabled = currentMissionIndex === missions.length - 1;
-      document.getElementById('btn-next').style.opacity = currentMissionIndex === missions.length - 1 ? '0.4' : '1';
+    </div>
 
-      // Load user grid for this level or create a blank one
-      if (!userGrids[mission.id]) {
-        userGrids[mission.id] = Array(5).fill().map(() => Array(5).fill(0));
-      }
+    <!-- Modals for Success & Failures -->
+    <div id="modalOverlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <!-- Success Modal -->
+        <div id="successModal" class="bg-slate-900 border-4 border-yellow-400 rounded-3xl p-8 max-w-md w-full text-center hidden flex flex-col items-center gap-6 shadow-2xl relative overflow-hidden">
+            <!-- Sparkles decor -->
+            <div class="absolute -top-10 -left-10 w-24 h-24 bg-yellow-400 rounded-full blur-3xl opacity-30"></div>
+            <div class="absolute -bottom-10 -right-10 w-24 h-24 bg-pink-500 rounded-full blur-3xl opacity-30"></div>
 
-      renderBlueprintGrid();
-      renderInteractiveGrid();
-    }
+            <div class="text-7xl animate-bounce">🏆</div>
+            <h2 class="text-3xl font-bold text-yellow-300">미션 완벽 성공!</h2>
+            
+            <div class="bg-slate-950/80 p-4 rounded-2xl border border-slate-800 w-full flex flex-col gap-2">
+                <p class="text-lg text-slate-300">잠금 해제된 모양: <span id="solvedShapeName" class="text-yellow-400 font-bold text-xl">스마일</span></p>
+                <p class="text-lg text-slate-300">소요 시간: <span id="solvedTime" class="text-teal-400 font-bold">00:45</span></p>
+                <p class="text-lg text-slate-300">터치 횟수: <span id="solvedClicks" class="text-pink-400 font-bold">25회</span></p>
+            </div>
 
-    function renderBlueprintGrid() {
-      const mission = missions[currentMissionIndex];
-      const container = document.getElementById('blueprint-grid');
-      container.innerHTML = '';
+            <p id="successQuote" class="text-purple-300 text-lg">우주 도면의 비밀을 모두 풀어냈어요! 정말 대단한 실력이에요 🪐</p>
+            
+            <div class="flex flex-col gap-2.5 w-full">
+                <button id="nextLevelBtn" class="w-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-black py-3.5 rounded-xl text-lg transition shadow-lg shadow-yellow-400/20 border-b-4 border-yellow-600">
+                    다음 미션 도전하기 <i class="fa-solid fa-forward"></i>
+                </button>
+                <button id="closeSuccessBtn" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2.5 rounded-xl transition">
+                    내가 그린 그림 더 보기
+                </button>
+            </div>
+        </div>
 
-      for (let r = 0; r < 5; r++) {
-        for (let c = 0; c < 5; c++) {
-          const bitVal = mission.blueprint[r][c];
+        <!-- Failure Modal -->
+        <div id="failModal" class="bg-slate-900 border-4 border-red-500 rounded-3xl p-8 max-w-md w-full text-center hidden flex flex-col items-center gap-6 shadow-2xl">
+            <div class="text-7xl animate-wiggle">🛸💦</div>
+            <h2 class="text-3xl font-bold text-red-400">어라? 조금 달라요!</h2>
+            
+            <p class="text-slate-300 text-lg leading-relaxed">
+                도면에 표시된 <span class="text-yellow-300 font-bold">1</span>의 위치와 격자판에 색칠한 위치가 정확히 일치하는지 다시 확인해봐요!
+            </p>
 
-          const cell = document.createElement('div');
-          
-          // Style setup based on state
-          let cellStyle = 'aspect-square flex items-center justify-center font-bold text-sm rounded-lg transition-all border cursor-pointer select-none ';
-          if (bitVal === 1) {
-            cellStyle += 'bg-slate-800 text-white border-slate-900 shadow-sm ';
-          } else {
-            cellStyle += 'bg-white text-slate-400 border-slate-200 ';
-          }
+            <div class="flex gap-2.5 bg-red-950/50 p-3 rounded-xl border border-red-900/60 text-left text-sm text-red-300">
+                <i class="fa-solid fa-circle-exclamation text-lg flex-shrink-0 mt-0.5"></i>
+                <span>포기하지 말아요! 왼쪽 도면에 '힌트 보기'를 켜면 더 쉽게 정답 칸을 찾을 수 있어요!</span>
+            </div>
 
-          // Active feedback connection if shown
-          if (showAnswers && bitVal === 1) {
-            cellStyle += 'ring-2 ring-blue-500 animate-pulse ';
-          }
+            <div class="flex gap-3 w-full">
+                <button id="closeFailBtn" class="flex-1 bg-red-500 hover:bg-red-400 text-white font-bold py-3 rounded-xl text-lg transition shadow-lg shadow-red-500/20 border-b-4 border-red-700">
+                    다시 풀어볼래요! <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
 
-          cell.className = cellStyle;
-          cell.innerHTML = `<span>${bitVal}</span>`;
-          
-          // Connect blueprint clicking to play sounds and guide user
-          cell.onclick = () => {
-            playSound('click');
-            // Toggle corresponding user cell as guidance helper
-            toggleUserCell(r, c);
-          };
+    <!-- Sound generation helper (Web Audio API) -->
+    <script>
+        // Retro synth sound effects to avoid external file dependencies
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+        let soundEnabled = true;
 
-          container.appendChild(cell);
-        }
-      }
-    }
-
-    function renderInteractiveGrid() {
-      const mission = missions[currentMissionIndex];
-      const container = document.getElementById('interactive-grid');
-      container.innerHTML = '';
-
-      for (let r = 0; r < 5; r++) {
-        for (let c = 0; c < 5; c++) {
-          const isFilled = userGrids[mission.id][r][c] === 1;
-          const cell = document.createElement('div');
-          
-          // Color binding
-          let cellClass = 'pixel-cell aspect-square border rounded-lg cursor-pointer flex items-center justify-center select-none ';
-          if (isFilled) {
-            cellClass += `${activeColorClass} text-white border-transparent shadow-md scale-95 `;
-          } else {
-            cellClass += 'bg-slate-100 border-slate-200 hover:bg-slate-200 ';
-          }
-
-          cell.className = cellClass;
-          
-          // Drag and Draw Mouse Events
-          cell.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-            isDrawing = true;
-            toggleUserCell(r, c);
-          });
-
-          cell.addEventListener('mouseenter', () => {
-            if (isDrawing) {
-              toggleUserCell(r, c, true); // force action when dragging
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioCtx();
             }
-          });
-
-          // Touch compatibility for tablets
-          cell.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            isDrawing = true;
-            toggleUserCell(r, c);
-          });
-
-          // Visual icon marker inside
-          if (isFilled) {
-            cell.innerHTML = '<i class="fa-solid fa-paintbrush text-xs opacity-40"></i>';
-          }
-
-          container.appendChild(cell);
         }
-      }
-    }
 
-    // --- INTERACTION CONTROLLERS ---
-    function toggleUserCell(r, c, isDragAction = false) {
-      const missionId = missions[currentMissionIndex].id;
-      
-      if (activeTool === 'eraser') {
-        // Eraser Tool action
-        if (userGrids[missionId][r][c] === 1) {
-          userGrids[missionId][r][c] = 0;
-          playSound('erase');
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'click') {
+                    // Quick high pitch tick/pop
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(150, now + 0.08);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                } else if (type === 'erase') {
+                    // Slide down
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.linearRampToValueAtTime(80, now + 0.12);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                } else if (type === 'success') {
+                    // Arpeggio / Level clear sound
+                    const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50]; // C Major
+                    notes.forEach((freq, idx) => {
+                        const noteOsc = audioCtx.createOscillator();
+                        const noteGain = audioCtx.createGain();
+                        noteOsc.connect(noteGain);
+                        noteGain.connect(audioCtx.destination);
+                        
+                        noteOsc.type = 'sine';
+                        noteOsc.frequency.setValueAtTime(freq, now + (idx * 0.08));
+                        noteGain.gain.setValueAtTime(0.15, now + (idx * 0.08));
+                        noteGain.gain.linearRampToValueAtTime(0.01, now + (idx * 0.08) + 0.3);
+                        
+                        noteOsc.start(now + (idx * 0.08));
+                        noteOsc.stop(now + (idx * 0.08) + 0.35);
+                    });
+                } else if (type === 'fail') {
+                    // Sad buzz down
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.linearRampToValueAtTime(70, now + 0.4);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'hint') {
+                    // Magical sparkle sound
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880, now);
+                    osc.frequency.exponentialRampToValueAtTime(1760, now + 0.15);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                }
+            } catch (e) {
+                console.error("Audio playback failed: ", e);
+            }
         }
-      } else {
-        // Color Pen Tool action
-        if (isDragAction) {
-          userGrids[missionId][r][c] = 1;
-        } else {
-          userGrids[missionId][r][c] = userGrids[missionId][r][c] === 1 ? 0 : 1;
+    </script>
+
+    <!-- Main Game Logic script -->
+    <script>
+        // 8x8 Stages Definition (Expanded to 12 Stages)
+        const STAGES = [
+            {
+                id: "smile",
+                name: "😀 활짝 스마일",
+                color: "#facc15", // Yellow-400
+                grid: [
+                    [0, 0, 1, 1, 1, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 0, 1, 0],
+                    [1, 0, 1, 0, 0, 1, 0, 1],
+                    [1, 0, 0, 0, 0, 0, 0, 1],
+                    [1, 0, 1, 0, 0, 1, 0, 1],
+                    [1, 0, 0, 1, 1, 0, 0, 1],
+                    [0, 1, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 1, 1, 1, 1, 0, 0]
+                ]
+            },
+            {
+                id: "heart",
+                name: "💖 달콤 하트",
+                color: "#f43f5e", // Rose-500
+                grid: [
+                    [0, 1, 1, 0, 0, 1, 1, 0],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [0, 1, 1, 1, 1, 1, 1, 0],
+                    [0, 0, 1, 1, 1, 1, 0, 0],
+                    [0, 0, 0, 1, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0]
+                ]
+            },
+            {
+                id: "star",
+                name: "⭐ 반짝이는 별",
+                color: "#eab308", // Yellow-500
+                grid: [
+                    [0, 0, 0, 1, 1, 0, 0, 0],
+                    [0, 0, 0, 1, 1, 0, 0, 0],
+                    [0, 1, 1, 1, 1, 1, 1, 0],
+                    [0, 0, 1, 1, 1, 1, 0, 0],
+                    [0, 0, 1, 1, 1, 1, 0, 0],
+                    [0, 1, 1, 0, 0, 1, 1, 0],
+                    [1, 1, 0, 0, 0, 0, 1, 1],
+                    [0, 0, 0, 0, 0, 0, 0, 0]
+                ]
+            },
+            {
+                id: "alien",
+                name: "👾 외계인 친구",
+                color: "#a855f7", // Purple-500
+                grid: [
+                    [0, 0, 1, 0, 0, 1, 0, 0],
+                    [0, 0, 0, 1, 1, 0, 0, 0],
+                    [0, 1, 1, 1, 1, 1, 1, 0],
+                    [1, 1, 0, 1, 1, 0, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [0, 0, 1, 1, 1, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 0, 1, 0],
+                    [1, 0, 0, 0, 0, 0, 0, 1]
+                ]
+            },
+            {
+                id: "spaceship",
+                name: "🚀 은하수 우주선",
+                color: "#3b82f6", // Blue-500
+                grid: [
+                    [0, 0, 0, 1, 1, 0, 0, 0],
+                    [0, 0, 1, 1, 1, 1, 0, 0],
+                    [0, 0, 1, 1, 1, 1, 0, 0],
+                    [0, 1, 1, 1, 1, 1, 1, 0],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 0, 1, 0, 0, 1, 0, 1],
+                    [0, 0, 1, 0, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 0, 0, 1, 0]
+                ]
+            },
+            {
+                id: "tree",
+                name: "🎄 크리스마스 트리",
+                color: "#22c55e", // Green-500
+                grid: [
+                    [0, 0, 0, 1, 1, 0, 0, 0],
+                    [0, 0, 1, 1, 1, 1, 0, 0],
+                    [0, 0, 0, 1, 1, 0, 0, 0],
+                    [0, 1, 1, 1, 1, 1, 1, 0],
+                    [0, 0, 1, 1, 1, 1, 0, 0],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [0, 0, 0, 1, 1, 0, 0, 0],
+                    [0, 0, 0, 1, 1, 0, 0, 0]
+                ]
+            },
+            // --- NEW STAGES ADDED BELOW ---
+            {
+                id: "cat",
+                name: "🐱 귀여운 고양이",
+                color: "#ff7849", // Coral/Orange
+                grid: [
+                    [1, 0, 0, 0, 0, 0, 0, 1],
+                    [1, 1, 0, 0, 0, 0, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 0, 1, 1, 0, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [0, 1, 1, 0, 0, 1, 1, 0],
+                    [0, 0, 1, 1, 1, 1, 0, 0],
+                    [0, 0, 1, 0, 0, 1, 0, 0]
+                ]
+            },
+            {
+                id: "dog",
+                name: "🐶 귀여운 바둑이",
+                color: "#eab308", // Golden Yellow
+                grid: [
+                    [0, 1, 0, 0, 0, 0, 1, 0],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 0, 1, 1, 1, 1, 0, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [0, 1, 1, 0, 0, 1, 1, 0],
+                    [0, 1, 1, 1, 1, 1, 1, 0],
+                    [0, 1, 0, 1, 1, 0, 1, 0],
+                    [0, 1, 0, 1, 1, 0, 1, 0]
+                ]
+            },
+            {
+                id: "ghost",
+                name: "👻 꼬마 유령",
+                color: "#f8fafc", // Whiteish Slate
+                grid: [
+                    [0, 0, 1, 1, 1, 1, 0, 0],
+                    [0, 1, 1, 1, 1, 1, 1, 0],
+                    [1, 1, 0, 1, 1, 0, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 0, 1, 0, 1, 0, 1, 0],
+                    [1, 0, 1, 0, 1, 0, 1, 0]
+                ]
+            },
+            {
+                id: "duck",
+                name: "🐥 아기 오리",
+                color: "#fbbf24", // Yellow-400
+                grid: [
+                    [0, 0, 1, 1, 1, 0, 0, 0],
+                    [0, 1, 1, 1, 1, 1, 0, 0],
+                    [0, 0, 1, 1, 1, 0, 0, 0],
+                    [0, 1, 1, 1, 1, 1, 1, 0],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 0],
+                    [0, 1, 1, 1, 1, 1, 0, 0],
+                    [0, 0, 1, 1, 1, 0, 0, 0]
+                ]
+            },
+            {
+                id: "chest",
+                name: "💎 우주 보물상자",
+                color: "#22c55e", // Emerald Green
+                grid: [
+                    [0, 1, 1, 1, 1, 1, 1, 0],
+                    [1, 1, 1, 0, 0, 1, 1, 1],
+                    [1, 0, 1, 1, 1, 1, 0, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 0, 1, 0, 0, 1, 0, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [0, 1, 0, 0, 0, 0, 1, 0]
+                ]
+            },
+            {
+                id: "crown",
+                name: "👑 우주 왕관",
+                color: "#ec4899", // Pink-500
+                grid: [
+                    [1, 0, 0, 0, 0, 0, 0, 1],
+                    [1, 0, 1, 0, 0, 1, 0, 1],
+                    [1, 0, 1, 0, 0, 1, 0, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [0, 1, 1, 1, 1, 1, 1, 0],
+                    [0, 1, 1, 1, 1, 1, 1, 0],
+                    [1, 1, 1, 1, 1, 1, 1, 1]
+                ]
+            }
+        ];
+
+        // System State
+        let currentStageIndex = 0;
+        let isHintActive = false;
+        let userGrid = Array(8).fill(null).map(() => Array(8).fill(0));
+        let clickCount = 0;
+        let selectedColor = '#facc15'; // Default yellow
+        let isDrawing = false; // For drag and paint logic
+
+        // Timer Variables
+        let timerSeconds = 0;
+        let timerInterval = null;
+
+        // Sound Settings
+        const soundBtn = document.getElementById('soundBtn');
+        const soundIcon = document.getElementById('soundIcon');
+        soundBtn.addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            if (soundEnabled) {
+                soundIcon.className = "fa-solid fa-volume-high text-xl";
+                soundBtn.className = "bg-indigo-800 hover:bg-indigo-700 text-indigo-200 font-bold p-2.5 rounded-xl transition duration-150 transform hover:scale-105";
+                playSound('click');
+            } else {
+                soundIcon.className = "fa-solid fa-volume-xmark text-xl";
+                soundBtn.className = "bg-slate-700 hover:bg-slate-600 text-slate-400 font-bold p-2.5 rounded-xl transition duration-150 transform hover:scale-105";
+            }
+        });
+
+        // Colors Palette setup
+        const COLOR_PALETTE = [
+            '#facc15', // Yellow
+            '#f43f5e', // Rose Pink
+            '#3b82f6', // Blue
+            '#22c55e', // Green
+            '#a855f7', // Purple
+            '#ff7849'  // Orange
+        ];
+
+        // Initialize stage selector
+        const stageSelect = document.getElementById('stageSelect');
+        STAGES.forEach((stage, idx) => {
+            const option = document.createElement('option');
+            option.value = idx;
+            option.textContent = stage.name;
+            stageSelect.appendChild(option);
+        });
+
+        stageSelect.addEventListener('change', (e) => {
+            loadStage(parseInt(e.target.value));
+        });
+
+        // Loading a Stage
+        function loadStage(index) {
+            currentStageIndex = index;
+            const stage = STAGES[index];
+            selectedColor = stage.color;
+            userGrid = Array(8).fill(null).map(() => Array(8).fill(0));
+            clickCount = 0;
+            document.getElementById('clickCounter').textContent = "0";
+
+            // Update Palette UI to highlight current theme color or allow user choices
+            setupPalette();
+
+            // Set up grids
+            renderCipherGrid();
+            renderCanvasGrid();
+
+            // Reset Timer
+            resetTimer();
+            startTimer();
+
+            // Ensure hint is reset or preserved
+            updateHintUI();
+            
+            // Sync selector just in case
+            stageSelect.value = index;
         }
-        playSound('click');
-      }
-      
-      saveToLocalStorage();
-      renderInteractiveGrid();
-    }
 
-    // Change tool and handle selector states
-    function changePenMode(tool, colorClass, toolName) {
-      activeTool = tool;
-      
-      if (tool === 'color') {
-        activeColorClass = colorClass;
-        activeColorName = toolName;
-      } else if (tool === 'eraser') {
-        activeColorName = 'eraser';
-      }
-      
-      updateToolSelectorUI();
-      playSound('click');
-    }
+        // Palette Maker
+        function setupPalette() {
+            const paletteEl = document.getElementById('palette');
+            paletteEl.innerHTML = '';
+            COLOR_PALETTE.forEach(color => {
+                const btn = document.createElement('button');
+                btn.className = `w-7 h-7 rounded-full border-2 transition transform hover:scale-110 flex items-center justify-center ${selectedColor === color ? 'border-white scale-110 shadow-lg shadow-white/40' : 'border-slate-800'}`;
+                btn.style.backgroundColor = color;
+                btn.title = "색상 고르기";
+                
+                if (selectedColor === color) {
+                    btn.innerHTML = '<i class="fa-solid fa-check text-[10px] text-slate-950 font-black"></i>';
+                }
 
-    // Render active state on tool selector buttons
-    function updateToolSelectorUI() {
-      const colors = ['slate', 'blue', 'emerald', 'rose'];
-      const eraserBtn = document.getElementById('tool-eraser');
-
-      // Reset all pens ring styles
-      colors.forEach(color => {
-        const el = document.getElementById(`color-${color}`);
-        el.className = `w-6 h-6 rounded-full bg-${color === 'slate' ? 'slate-800' : color === 'rose' ? 'rose-500' : color + '-600'} border-2 transition`;
-      });
-
-      // Reset eraser active style
-      eraserBtn.className = "w-8 h-8 rounded-xl bg-pink-50 border border-pink-200 hover:bg-pink-100 text-pink-600 flex items-center justify-center transition";
-
-      // Apply ring effect based on current selection
-      if (activeTool === 'color') {
-        const activePen = document.getElementById(`color-${activeColorName}`);
-        if (activePen) {
-          const colorRingClass = activeColorName === 'slate' ? 'ring-slate-800/40' : activeColorName === 'rose' ? 'ring-rose-500/40' : `${activeColorName}-600/40`;
-          activePen.className += ` ring-2 ring-offset-1 ring-${colorRingClass}`;
+                btn.addEventListener('click', () => {
+                    selectedColor = color;
+                    playSound('click');
+                    setupPalette();
+                });
+                paletteEl.appendChild(btn);
+            });
         }
-      } else if (activeTool === 'eraser') {
-        eraserBtn.className = "w-8 h-8 rounded-xl bg-pink-500 text-white flex items-center justify-center transition shadow-md shadow-pink-100 ring-2 ring-pink-300 ring-offset-1";
-      }
-    }
 
-    function clearCurrentCanvas() {
-      const missionId = missions[currentMissionIndex].id;
-      userGrids[missionId] = Array(5).fill().map(() => Array(5).fill(0));
-      saveToLocalStorage();
-      renderInteractiveGrid();
-      playSound('click');
-    }
+        // Render Left Cipher View (with indices)
+        function renderCipherGrid() {
+            const container = document.getElementById('cipherContainer');
+            container.innerHTML = ''; // Reset
 
-    function toggleShowAnswers() {
-      showAnswers = !showAnswers;
-      const textSpan = document.getElementById('toggle-answer-text');
-      const btn = document.getElementById('btn-toggle-answer');
-      
-      if (showAnswers) {
-        textSpan.textContent = "정답 힌트 숨기기";
-        btn.classList.add('bg-blue-50', 'border-blue-300', 'text-blue-600');
-      } else {
-        textSpan.textContent = "정답 힌트 보기";
-        btn.classList.remove('bg-blue-50', 'border-blue-300', 'text-blue-600');
-      }
-      renderBlueprintGrid();
-      playSound('click');
-    }
+            const stage = STAGES[currentStageIndex];
 
-    // --- GAME LOGIC ---
-    function gradeCurrentMission() {
-      const mission = missions[currentMissionIndex];
-      const userGrid = userGrids[mission.id];
-      const targetGrid = mission.blueprint;
-      
-      let isCorrect = true;
-      for (let r = 0; r < 5; r++) {
-        for (let c = 0; c < 5; c++) {
-          if (userGrid[r][c] !== targetGrid[r][c]) {
-            isCorrect = false;
-            break;
-          }
+            for (let r = 0; r < 8; r++) {
+                // Row Label
+                const rowLabel = document.createElement('div');
+                rowLabel.className = "flex items-center justify-center font-bold text-purple-400 text-sm h-full";
+                rowLabel.textContent = `${r + 1}행`;
+                container.appendChild(rowLabel);
+
+                for (let c = 0; c < 8; c++) {
+                    const value = stage.grid[r][c];
+                    const cell = document.createElement('div');
+                    
+                    // Basic layout styling
+                    cell.className = "aspect-square flex flex-col items-center justify-center rounded-lg font-bold text-lg select-none border transition-all duration-300 relative overflow-hidden ";
+                    
+                    cell.innerHTML = `
+                        <span class="z-10 text-xl font-mono">${value}</span>
+                    `;
+
+                    // Style cell based on whether hint is active and binary digit
+                    if (value === 1) {
+                        cell.classList.add('border-purple-600/50', 'bg-slate-900', 'text-yellow-300');
+                        
+                        // Sparkle or glowing hint effect
+                        if (isHintActive) {
+                            cell.className += " border-amber-400 shadow-md shadow-amber-500/30 text-slate-950 font-black bg-gradient-to-br from-amber-400 via-pink-400 to-indigo-400 scale-[0.96] animate-pulse";
+                        }
+                    } else {
+                        cell.classList.add('border-slate-800', 'bg-slate-950', 'text-slate-600');
+                    }
+
+                    container.appendChild(cell);
+                }
+            }
         }
-      }
 
-      if (isCorrect) {
-        playSound('success');
-        triggerSuccessConfetti();
-        
-        // Add to completed list
-        if (!completedMissions.includes(mission.id)) {
-          completedMissions.push(mission.id);
+        // Render Right Interactable Canvas (with indices)
+        function renderCanvasGrid() {
+            const container = document.getElementById('canvasContainer');
+            container.innerHTML = ''; // Reset
+
+            for (let r = 0; r < 8; r++) {
+                // Row Label
+                const rowLabel = document.createElement('div');
+                rowLabel.className = "flex items-center justify-center font-bold text-teal-400 text-sm h-full";
+                rowLabel.textContent = `${r + 1}행`;
+                container.appendChild(rowLabel);
+
+                for (let c = 0; c < 8; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = "pixel-cell aspect-square rounded-lg border border-slate-800 bg-slate-900 cursor-pointer flex items-center justify-center transition-all duration-150 shadow-inner";
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+
+                    // Click & drag interaction logic
+                    cell.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        isDrawing = true;
+                        toggleCell(r, c, cell);
+                    });
+
+                    cell.addEventListener('mouseenter', () => {
+                        if (isDrawing) {
+                            // Paint if dragging
+                            paintCell(r, c, cell, true);
+                        }
+                    });
+
+                    container.appendChild(cell);
+                }
+            }
         }
-        
-        saveToLocalStorage();
-        initApp(); // Redraw status and road maps
 
-        // Is this the absolute final mission?
-        if (completedMissions.length === missions.length) {
-          setTimeout(() => {
-            showFinalCelebration();
-          }, 1000);
-        } else {
-          showAlertModal('🏆 암호 해독 성공!', '축하합니다! 도면과 100% 일치합니다. 다음 미션에 도전해 보세요!', 'emerald');
+        // Listen for mouseup globally to stop dragging
+        window.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+
+        // Paint Cell Helper (specifically for dragging and click)
+        function paintCell(r, c, element, forceState = null) {
+            const currentVal = userGrid[r][c];
+            // If dragging, we want to set it to colored (1)
+            if (currentVal === 0) {
+                userGrid[r][c] = 1;
+                element.style.backgroundColor = selectedColor;
+                element.classList.add('shadow-[0_0_12px_rgba(255,255,255,0.3)]', 'border-white/50');
+                element.classList.remove('bg-slate-900');
+                incrementClickCount();
+                playSound('click');
+            }
         }
-      } else {
-        playSound('fail');
-        showAlertModal('❌ 해독 오류 발생', '칠해진 칸이 도면 암호 데이터와 맞지 않습니다. 다시 꼼꼼하게 검토해 보세요!', 'rose');
-      }
-    }
 
-    function changeMission(dir) {
-      const newIndex = currentMissionIndex + dir;
-      if (newIndex >= 0 && newIndex < missions.length) {
-        currentMissionIndex = newIndex;
-        showAnswers = false;
-        
-        const btn = document.getElementById('btn-toggle-answer');
-        btn.classList.remove('bg-blue-50', 'border-blue-300', 'text-blue-600');
-        document.getElementById('toggle-answer-text').textContent = "정답 힌트 보기";
-
-        localStorage.setItem('pixel_current_index', currentMissionIndex);
-        playSound('click');
-        initApp();
-      }
-    }
-
-    function selectMission(idx) {
-      currentMissionIndex = idx;
-      showAnswers = false;
-      
-      const btn = document.getElementById('btn-toggle-answer');
-      btn.classList.remove('bg-blue-50', 'border-blue-300', 'text-blue-600');
-      document.getElementById('toggle-answer-text').textContent = "정답 힌트 보기";
-
-      localStorage.setItem('pixel_current_index', currentMissionIndex);
-      playSound('click');
-      initApp();
-    }
-
-    function updateOverallProgress() {
-      const count = completedMissions.length;
-      document.getElementById('overall-progress-text').textContent = `완료: ${count}/${missions.length}`;
-    }
-
-    function showFinalCelebration() {
-      playSound('victory');
-      triggerMegaConfetti();
-      
-      document.getElementById('game-active-layout').classList.add('hidden');
-      document.getElementById('all-clear-layout').classList.remove('hidden');
-    }
-
-    // --- RESET MANAGEMENT ---
-    function resetAllMissionsConfirm() {
-      if (confirm('정말로 모든 해독 진행 데이터를 리셋하고 처음 단계로 초기화하시겠습니까?')) {
-        completedMissions = [];
-        userGrids = {};
-        currentMissionIndex = 0;
-        
-        localStorage.removeItem('pixel_completed_missions');
-        localStorage.removeItem('pixel_user_grids');
-        localStorage.removeItem('pixel_current_index');
-        
-        showAnswers = false;
-        initApp();
-        playSound('victory');
-        
-        showAlertModal('🔄 시스템 초기화 완료', '모든 암호 해독 미션이 완벽하게 세팅되었습니다.', 'slate');
-      }
-    }
-
-    // --- UTILITY MODALS & SAVES ---
-    function saveToLocalStorage() {
-      localStorage.setItem('pixel_completed_missions', JSON.stringify(completedMissions));
-      localStorage.setItem('pixel_user_grids', JSON.stringify(userGrids));
-    }
-
-    function toggleGuideModal() {
-      const modal = document.getElementById('guide-modal');
-      modal.classList.toggle('hidden');
-      playSound('click');
-    }
-
-    function showAlertModal(title, desc, themeColor) {
-      const modal = document.getElementById('alert-modal');
-      const titleEl = document.getElementById('alert-title');
-      const descEl = document.getElementById('alert-desc');
-      const iconContainer = document.getElementById('alert-icon-container');
-
-      titleEl.textContent = title;
-      descEl.textContent = desc;
-
-      // Color scheme selector
-      if (themeColor === 'emerald') {
-        iconContainer.className = "mx-auto w-12 h-12 rounded-full flex items-center justify-center text-2xl mb-4 bg-emerald-100 text-emerald-600 animate-bounce";
-        iconContainer.innerHTML = '<i class="fa-solid fa-trophy"></i>';
-      } else if (themeColor === 'rose') {
-        iconContainer.className = "mx-auto w-12 h-12 rounded-full flex items-center justify-center text-2xl mb-4 bg-rose-100 text-rose-600 animate-shake";
-        iconContainer.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i>';
-      } else {
-        iconContainer.className = "mx-auto w-12 h-12 rounded-full flex items-center justify-center text-2xl mb-4 bg-slate-100 text-slate-600";
-        iconContainer.innerHTML = '<i class="fa-solid fa-bell"></i>';
-      }
-
-      modal.classList.remove('hidden');
-    }
-
-    function closeAlertModal() {
-      document.getElementById('alert-modal').classList.add('hidden');
-      playSound('click');
-    }
-
-
-    // --- CONFETTI PARTICLE SYSTEM ---
-    const canvas = document.getElementById('confetti-canvas');
-    const ctx = canvas.getContext('2d');
-    let particles = [];
-    let animationFrameId;
-
-    function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-
-    class Particle {
-      constructor(x, y, isExplosion = false) {
-        this.x = x;
-        this.y = y;
-        this.size = Math.random() * 8 + 4;
-        this.color = `hsl(${Math.random() * 360}, 100%, 50%)`;
-        
-        if (isExplosion) {
-          const angle = Math.random() * Math.PI * 2;
-          const speed = Math.random() * 12 + 4;
-          this.speedX = Math.cos(angle) * speed;
-          this.speedY = Math.sin(angle) * speed;
-        } else {
-          this.speedX = Math.random() * 4 - 2;
-          this.speedY = Math.random() * 5 + 3;
+        // Toggle Single Cell
+        function toggleCell(r, c, element) {
+            if (userGrid[r][c] === 0) {
+                userGrid[r][c] = 1;
+                element.style.backgroundColor = selectedColor;
+                element.classList.add('shadow-[0_0_12px_rgba(255,255,255,0.3)]', 'border-white/50');
+                element.classList.remove('bg-slate-900');
+                playSound('click');
+            } else {
+                userGrid[r][c] = 0;
+                element.style.backgroundColor = '';
+                element.classList.remove('shadow-[0_0_12px_rgba(255,255,255,0.3)]', 'border-white/50');
+                element.classList.add('bg-slate-900');
+                playSound('erase');
+            }
+            incrementClickCount();
         }
-        
-        this.rotation = Math.random() * 360;
-        this.rotationSpeed = Math.random() * 10 - 5;
-        this.opacity = 1;
-      }
 
-      update() {
-        this.x += this.speedX;
-        this.y += this.speedY;
-        this.rotation += this.rotationSpeed;
-        
-        // gravity
-        this.speedY += 0.1;
-        this.opacity -= 0.015;
-      }
-
-      draw() {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate((this.rotation * Math.PI) / 180);
-        ctx.fillStyle = this.color;
-        ctx.globalAlpha = this.opacity;
-        ctx.fillRect(-this.size / 2, -this.size / 2, this.size, this.size);
-        ctx.restore();
-      }
-    }
-
-    function triggerSuccessConfetti() {
-      particles = [];
-      const startY = window.innerHeight + 10;
-      // Burst from left and right corners
-      for (let i = 0; i < 40; i++) {
-        particles.push(new Particle(50, startY - 50, true));
-        particles.push(new Particle(window.innerWidth - 50, startY - 50, true));
-      }
-      animateConfetti();
-    }
-
-    function triggerMegaConfetti() {
-      particles = [];
-      const centerX = window.innerWidth / 2;
-      const centerY = window.innerHeight / 2;
-      
-      for (let i = 0; i < 150; i++) {
-        particles.push(new Particle(centerX, centerY, true));
-      }
-      animateConfetti();
-    }
-
-    function animateConfetti() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      particles.forEach((p, idx) => {
-        p.update();
-        p.draw();
-        if (p.opacity <= 0) {
-          particles.splice(idx, 1);
+        function incrementClickCount() {
+            clickCount++;
+            document.getElementById('clickCounter').textContent = clickCount;
         }
-      });
 
-      if (particles.length > 0) {
-        animationFrameId = requestAnimationFrame(animateConfetti);
-      } else {
-        cancelAnimationFrame(animationFrameId);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
-    }
-  </script>
+        // Toggle Hint State
+        const hintBtn = document.getElementById('hintBtn');
+        const hintIcon = document.getElementById('hintIcon');
+        const hintBtnText = document.getElementById('hintBtnText');
+
+        hintBtn.addEventListener('click', () => {
+            isHintActive = !isHintActive;
+            playSound('hint');
+            updateHintUI();
+            renderCipherGrid(); // Re-render to show/hide highlights
+        });
+
+        function updateHintUI() {
+            if (isHintActive) {
+                hintIcon.className = "fa-solid fa-eye text-slate-950";
+                hintBtnText.textContent = "힌트 켜짐!";
+                hintBtnText.className = "text-slate-950 font-black";
+                hintBtn.className = "bg-yellow-300 hover:bg-yellow-400 text-slate-950 font-bold px-4 py-2 rounded-xl transition duration-150 transform hover:scale-105 flex items-center gap-2 shadow-lg shadow-yellow-300/40 border-b-2 border-yellow-500 animate-pulse";
+            } else {
+                hintIcon.className = "fa-solid fa-eye-slash text-white";
+                hintBtnText.textContent = "힌트 보기";
+                hintBtnText.className = "text-white";
+                hintBtn.className = "bg-amber-500 hover:bg-amber-400 text-white font-bold px-4 py-2 rounded-xl transition duration-150 transform hover:scale-105 flex items-center gap-2 shadow-lg shadow-amber-500/20";
+            }
+        }
+
+        // Timer Logic
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timerSeconds++;
+                const min = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+                const sec = String(timerSeconds % 60).padStart(2, '0');
+                document.getElementById('timer').textContent = `${min}:${sec}`;
+            }, 1000);
+        }
+
+        function resetTimer() {
+            timerSeconds = 0;
+            document.getElementById('timer').textContent = "00:00";
+            if (timerInterval) clearInterval(timerInterval);
+        }
+
+        // Clear button
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            playSound('erase');
+            // Reset grid values
+            userGrid = Array(8).fill(null).map(() => Array(8).fill(0));
+            
+            // Re-render canvas cells
+            const cells = document.querySelectorAll('.pixel-cell');
+            cells.forEach(cell => {
+                cell.style.backgroundColor = '';
+                cell.classList.remove('shadow-[0_0_12px_rgba(255,255,255,0.3)]', 'border-white/50');
+                cell.classList.add('bg-slate-900');
+            });
+            
+            clickCount = 0;
+            document.getElementById('clickCounter').textContent = "0";
+        });
+
+        // Match Verification (Judging System)
+        document.getElementById('checkBtn').addEventListener('click', () => {
+            const targetGrid = STAGES[currentStageIndex].grid;
+            let matched = true;
+
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    if (userGrid[r][c] !== targetGrid[r][c]) {
+                        matched = false;
+                        break;
+                    }
+                }
+                if (!matched) break;
+            }
+
+            if (matched) {
+                // Success Modal Show
+                playSound('success');
+                showSuccessModal();
+            } else {
+                // Fail Modal Show
+                playSound('fail');
+                showModal('failModal');
+            }
+        });
+
+        // Modals Management
+        const modalOverlay = document.getElementById('modalOverlay');
+
+        function showModal(modalId) {
+            modalOverlay.classList.remove('hidden');
+            document.getElementById('successModal').classList.add('hidden');
+            document.getElementById('failModal').classList.add('hidden');
+            
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        function hideModals() {
+            modalOverlay.classList.add('hidden');
+        }
+
+        function showSuccessModal() {
+            // Stop timer to lock in results
+            clearInterval(timerInterval);
+
+            const activeStage = STAGES[currentStageIndex];
+            const min = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+            const sec = String(timerSeconds % 60).padStart(2, '0');
+
+            document.getElementById('solvedShapeName').textContent = activeStage.name;
+            document.getElementById('solvedTime').textContent = `${min}분 ${sec}초`;
+            document.getElementById('solvedClicks').textContent = `${clickCount}회`;
+
+            // Random encouragement phrases
+            const quotes = [
+                "대단해요! 암호 도면을 완벽히 정복하여 보물을 발견했습니다! 🎁",
+                "우주 정거장의 암호를 모두 풀어냈어요! 다음 관문도 어서 출발해볼까요? 🛸",
+                "이진수의 천재가 바로 여러분이군요! 완벽하게 격자를 채웠습니다 ✨",
+                "이진수 0과 1의 규칙을 멋지게 이해했어요! 축하합니다 🎉"
+            ];
+            document.getElementById('successQuote').textContent = quotes[Math.floor(Math.random() * quotes.length)];
+
+            showModal('successModal');
+        }
+
+        // Modal Action listeners
+        document.getElementById('closeSuccessBtn').addEventListener('click', hideModals);
+        document.getElementById('closeFailBtn').addEventListener('click', hideModals);
+
+        document.getElementById('nextLevelBtn').addEventListener('click', () => {
+            hideModals();
+            // Go to next level
+            let nextIndex = currentStageIndex + 1;
+            if (nextIndex >= STAGES.length) {
+                nextIndex = 0; // Loop back
+            }
+            loadStage(nextIndex);
+        });
+
+        // Initial setup on Window Load
+        window.onload = function() {
+            loadStage(0);
+        };
+    </script>
 </body>
 </html>
