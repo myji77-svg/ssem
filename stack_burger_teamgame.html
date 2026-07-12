@@ -1,0 +1,1657 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>도전! 버거 셰프 (Burger Chef Challenge)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Jua & Nanum Gothic -->
+  <link href="https://fonts.googleapis.com/css2?family=Jua&family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Nanum Gothic', sans-serif;
+      overflow-x: hidden;
+    }
+    .font-jua {
+      font-family: 'Jua', sans-serif;
+    }
+    /* Burger board checkered pattern background */
+    .bg-grid-pattern {
+      background-color: #fcf8f2;
+      background-image: radial-gradient(#f3e8d5 1.5px, transparent 1.5px), radial-gradient(#f3e8d5 1.5px, #fcf8f2 1.5px);
+      background-size: 20px 20px;
+      background-position: 0 0, 10px 10px;
+    }
+    /* Card Flip animations */
+    .flip-card {
+      perspective: 1000px;
+    }
+    .flip-card-inner {
+      transition: transform 0.4s;
+      transform-style: preserve-3d;
+    }
+    .flip-card.flipped .flip-card-inner {
+      transform: rotateY(180deg);
+    }
+    .flip-card-front, .flip-card-back {
+      backface-visibility: hidden;
+    }
+    .flip-card-back {
+      transform: rotateY(180deg);
+    }
+  </style>
+</head>
+<body class="bg-grid-pattern min-h-screen text-slate-800 p-1 md:p-2">
+  <div id="root"></div>
+
+  <!-- Firebase Scripts modules loaded externally -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Fallback and dynamic config parsing
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'burger-chef-challenge';
+    let firebaseConfig = {};
+    try {
+      firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+        apiKey: "demo-key",
+        authDomain: "demo.firebaseapp.com",
+        projectId: "demo-proj"
+      };
+    } catch(e) {
+      console.warn("Using fallback firebase config");
+    }
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    // Bind to window for React code consumption
+    window.FBASE = {
+      db, auth, appId,
+      doc, getDoc, setDoc, updateDoc, onSnapshot, collection,
+      signInAnonymously, signInWithCustomToken, onAuthStateChanged
+    };
+  </script>
+
+  <!-- React & Babel CDNs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.10/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    class SoundEffects {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+      init() {
+        if (!this.ctx) {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playFlip() {
+        if (this.muted) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(150, this.ctx.currentTime + 0.12);
+        
+        gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.12);
+      }
+      playSuccess() {
+        if (this.muted) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const playNote = (freq, delay, duration) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + delay);
+          gain.gain.setValueAtTime(0, now + delay);
+          gain.gain.linearRampToValueAtTime(0.12, now + delay + 0.04);
+          gain.gain.linearRampToValueAtTime(0, now + delay + duration);
+          
+          osc.start(now + delay);
+          osc.stop(now + delay + duration);
+        };
+        
+        playNote(261.63, 0, 0.12); // C4
+        playNote(329.63, 0.06, 0.12); // E4
+        playNote(392.00, 0.12, 0.12); // G4
+        playNote(523.25, 0.18, 0.25); // C5
+      }
+      playFail() {
+        if (this.muted) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(80, now + 0.3);
+        
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+        
+        osc.start();
+        osc.stop(now + 0.3);
+      }
+      playSelect() {
+        if (this.muted) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(280, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(450, this.ctx.currentTime + 0.08);
+        
+        gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
+      }
+    }
+
+    const sfx = new SoundEffects();
+
+    const INGREDIENTS_INFO = {
+      bun: { name: '참깨빵', emoji: '🍞', color: 'from-amber-400 to-amber-600', borderColor: 'border-amber-700', text: 'text-amber-950' },
+      patty: { name: '고기패티', emoji: '🥩', color: 'from-amber-800 to-amber-950', borderColor: 'border-amber-950', text: 'text-white' },
+      tomato: { name: '토마토', emoji: '🍅', color: 'from-red-500 to-red-600', borderColor: 'border-red-700', text: 'text-white' },
+      cheese: { name: '치즈', emoji: '🧀', color: 'from-yellow-300 to-yellow-500', borderColor: 'border-yellow-600', text: 'text-amber-950' },
+      lettuce: { name: '양상추', emoji: '🥬', color: 'from-emerald-400 to-emerald-600', borderColor: 'border-emerald-700', text: 'text-white' },
+      bacon: { name: '베이컨', emoji: '🥓', color: 'from-rose-500 to-rose-700', borderColor: 'border-rose-950', text: 'text-white' }
+    };
+
+    const RECIPES_POOL = [
+      { id: 'r1', name: '치즈버거 샌드', points: 1, ingredients: ['bun', 'cheese', 'bun'] },
+      { id: 'r2', name: '오리지널 패티버거', points: 1, ingredients: ['bun', 'patty', 'bun'] },
+      { id: 'r3', name: '양상추 프레시버거', points: 1, ingredients: ['bun', 'lettuce', 'bun'] },
+      { id: 'r4', name: '토마토 토스트', points: 1, ingredients: ['bun', 'tomato', 'bun'] },
+      { id: 'r5', name: '클래식 버거', points: 2, ingredients: ['bun', 'patty', 'cheese', 'bun'] },
+      { id: 'r6', name: '베이컨 홀릭', points: 2, ingredients: ['bun', 'bacon', 'cheese', 'bun'] },
+      { id: 'r7', name: '더블 치즈 클래식', points: 2, ingredients: ['bun', 'cheese', 'cheese', 'bun'] },
+      { id: 'r8', name: '토마토 가든', points: 2, ingredients: ['bun', 'lettuce', 'tomato', 'bun'] },
+      { id: 'r9', name: '고기 가득 패티버거', points: 2, ingredients: ['bun', 'patty', 'patty', 'bun'] },
+      { id: 'r10', name: '베이컨 프레시 버거', points: 3, ingredients: ['bun', 'bacon', 'lettuce', 'tomato', 'bun'] },
+      { id: 'r11', name: '굿모닝 메가버거', points: 3, ingredients: ['bun', 'patty', 'cheese', 'tomato', 'bun'] },
+      { id: 'r12', name: '자이언트 더블패티', points: 3, ingredients: ['bun', 'patty', 'cheese', 'patty', 'bun'] },
+      { id: 'r13', name: '마스터 킹버거', points: 3, ingredients: ['bun', 'patty', 'bacon', 'cheese', 'lettuce', 'bun'] },
+      { id: 'r14', name: '에코 그린스페셜', points: 3, ingredients: ['bun', 'lettuce', 'cheese', 'tomato', 'lettuce', 'bun'] }
+    ];
+
+    const PRESET_ICONS = ['🦖', '🐳', '🦊', '🐼', '🦄', '🦁', '🐹', '🐱', '🐸', '🐨', '🐙', '🐯'];
+    const PRESET_COLORS = [
+      'bg-red-500 border-red-600',
+      'bg-blue-500 border-blue-600',
+      'bg-emerald-500 border-emerald-600',
+      'bg-amber-500 border-amber-600',
+      'bg-purple-500 border-purple-600',
+      'bg-pink-500 border-pink-600',
+      'bg-indigo-500 border-indigo-600',
+      'bg-orange-500 border-orange-600'
+    ];
+
+    function App() {
+      const [isOnlineMode, setIsOnlineMode] = useState(false);
+      const [user, setUser] = useState(null);
+      const [roomId, setRoomId] = useState('');
+      const [roomInput, setRoomInput] = useState('');
+      const [nicknameInput, setNicknameInput] = useState('');
+      const [isHost, setIsHost] = useState(false);
+      const [activeTab, setActiveTab] = useState('local'); // 'local' or 'online'
+      const [joinedRoom, setJoinedRoom] = useState(false);
+
+      // Unified local state fallback (mirrors room fields)
+      const [gameState, setGameState] = useState({
+        gamePhase: 'setup', // 'setup', 'playing', 'gameover'
+        gridSize: 16,
+        winningScore: 7,
+        recipeFilter: 'all',
+        players: [
+          { id: 1, name: '학생 1', score: 0, color: 'bg-red-500 border-red-600', textColor: 'text-red-500', icon: '🦖', userId: 'local-1' },
+          { id: 2, name: '학생 2', score: 0, color: 'bg-blue-500 border-blue-600', textColor: 'text-blue-500', icon: '🐳', userId: 'local-2' },
+          { id: 3, name: '학생 3', score: 0, color: 'bg-emerald-500 border-emerald-600', textColor: 'text-emerald-500', icon: '🦊', userId: 'local-3' },
+          { id: 4, name: '학생 4', score: 0, color: 'bg-amber-500 border-amber-600', textColor: 'text-amber-500', icon: '🐼', userId: 'local-4' },
+          { id: 5, name: '학생 5', score: 0, color: 'bg-purple-500 border-purple-600', textColor: 'text-purple-500', icon: '🦄', userId: 'local-5' }
+        ],
+        currentPlayerIndex: 0,
+        tiles: [],
+        activeRecipes: [],
+        recipePool: [],
+        currentAction: 'explore',
+        exploredTileIds: [],
+        challengeTargetRecipe: null,
+        challengeStep: 0,
+        challengeFlippedTileIds: [],
+        gameLog: [],
+        hostId: ''
+      });
+
+      const [alertMsg, setAlertMsg] = useState({ text: '', type: 'info' });
+      const [showRules, setShowRules] = useState(false);
+      const [isMuted, setIsMuted] = useState(false);
+      const [timeLeft, setTimeLeft] = useState(45);
+      const [isTimerActive, setIsTimerActive] = useState(false);
+      const timerRef = useRef(null);
+      const firebaseUnsubscribeRef = useRef(null);
+
+      useEffect(() => {
+        const initAuth = async () => {
+          if (!window.FBASE) return;
+          const { auth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } = window.FBASE;
+          
+          onAuthStateChanged(auth, (u) => {
+            if (u) {
+              setUser(u);
+            }
+          });
+
+          try {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+              await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+              await signInAnonymously(auth);
+            }
+          } catch (err) {
+            console.error("Auth error, trying fallback:", err);
+            try {
+              await signInAnonymously(auth);
+            } catch (e2) {
+              console.error("Critical Auth failure:", e2);
+            }
+          }
+        };
+        initAuth();
+      }, []);
+
+      // Clean up snapshot listeners on unmount
+      useEffect(() => {
+        return () => {
+          if (firebaseUnsubscribeRef.current) {
+            firebaseUnsubscribeRef.current();
+          }
+        };
+      }, []);
+
+      const syncToFirebase = async (updates) => {
+        if (!isOnlineMode || !roomId || !window.FBASE) return;
+        const { db, doc, updateDoc, appId } = window.FBASE;
+        if (!user) return;
+        const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
+        try {
+          await updateDoc(roomRef, updates);
+        } catch (err) {
+          console.error("Firestore sync error:", err);
+        }
+      };
+
+      const subscribeToRoom = (targetRoomId) => {
+        if (!window.FBASE || !user) return;
+        const { db, doc, onSnapshot, appId } = window.FBASE;
+        const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', targetRoomId);
+
+        if (firebaseUnsubscribeRef.current) {
+          firebaseUnsubscribeRef.current();
+        }
+
+        firebaseUnsubscribeRef.current = onSnapshot(roomRef, (snapshot) => {
+          if (snapshot.exists()) {
+            const data = snapshot.data();
+            setGameState(data);
+            if (data.hostId === user.uid) {
+              setIsHost(true);
+            }
+          } else {
+            showAlert("방 정보가 존재하지 않거나 만료되었습니다.", "error");
+            setJoinedRoom(false);
+            setIsOnlineMode(false);
+          }
+        }, (err) => {
+          console.error("Room sync error:", err);
+        });
+      };
+
+      const addLocalPlayer = () => {
+        if (gameState.players.length >= 8) {
+          showAlert('최대 8명까지만 등록할 수 있습니다!', 'error');
+          return;
+        }
+        const index = gameState.players.length;
+        const presetIcon = PRESET_ICONS[index % PRESET_ICONS.length];
+        const presetColor = PRESET_COLORS[index % PRESET_COLORS.length];
+        const newPlayer = {
+          id: Date.now(),
+          name: `학생 ${index + 1}`,
+          score: 0,
+          color: presetColor,
+          textColor: presetColor.replace('bg-', 'text-'),
+          icon: presetIcon,
+          userId: `local-${Date.now()}`
+        };
+
+        const updatedPlayers = [...gameState.players, newPlayer];
+        setGameState(prev => ({ ...prev, players: updatedPlayers }));
+        sfx.playSelect();
+      };
+
+      const deleteLocalPlayer = (id) => {
+        if (gameState.players.length <= 2) {
+          showAlert('최소 2명의 플레이어가 필요합니다.', 'error');
+          return;
+        }
+        const updatedPlayers = gameState.players.filter(p => p.id !== id);
+        setGameState(prev => ({ ...prev, players: updatedPlayers }));
+        sfx.playSelect();
+      };
+
+      const handleNameChange = (id, newName) => {
+        const updatedPlayers = gameState.players.map(p => p.id === id ? { ...p, name: newName } : p);
+        const updates = { players: updatedPlayers };
+        setGameState(prev => ({ ...prev, ...updates }));
+        syncToFirebase(updates);
+      };
+
+      const handleIconChange = (id, newIcon) => {
+        const updatedPlayers = gameState.players.map(p => p.id === id ? { ...p, icon: newIcon } : p);
+        const updates = { players: updatedPlayers };
+        setGameState(prev => ({ ...prev, ...updates }));
+        syncToFirebase(updates);
+      };
+
+      const handleCreateRoom = async () => {
+        if (!user || !window.FBASE) {
+          showAlert("네트워크 로그인 대기 중입니다. 잠시 후 다시 시도하세요.", "error");
+          return;
+        }
+        if (!nicknameInput.trim()) {
+          showAlert("방장의 닉네임을 입력하세요!", "error");
+          return;
+        }
+        
+        sfx.playSelect();
+        const code = Math.random().toString(36).substring(2, 6).toUpperCase(); // 4-char Room Code
+        const { db, doc, setDoc, appId } = window.FBASE;
+        const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', code);
+
+        const initialOnlineState = {
+          roomId: code,
+          hostId: user.uid,
+          gamePhase: 'setup',
+          gridSize: 16,
+          winningScore: 7,
+          recipeFilter: 'all',
+          players: [
+            {
+              id: 1,
+              name: nicknameInput.trim(),
+              score: 0,
+              color: PRESET_COLORS[0],
+              textColor: PRESET_COLORS[0].replace('bg-', 'text-'),
+              icon: PRESET_ICONS[0],
+              userId: user.uid
+            }
+          ],
+          currentPlayerIndex: 0,
+          tiles: [],
+          activeRecipes: [],
+          recipePool: [],
+          currentAction: 'explore',
+          exploredTileIds: [],
+          challengeTargetRecipe: null,
+          challengeStep: 0,
+          challengeFlippedTileIds: [],
+          gameLog: [`🏠 온라인 쿠킹 스튜디오가 열렸습니다. (방 코드: ${code})`]
+        };
+
+        try {
+          await setDoc(roomRef, initialOnlineState);
+          setRoomId(code);
+          setIsOnlineMode(true);
+          setIsHost(true);
+          setJoinedRoom(true);
+          subscribeToRoom(code);
+          showAlert(`방이 개설되었습니다! 방 코드: ${code}`, "success");
+        } catch (err) {
+          console.error("Failed to create room:", err);
+          showAlert("방 개설에 실패했습니다.", "error");
+        }
+      };
+
+      const handleJoinRoom = async () => {
+        if (!user || !window.FBASE) {
+          showAlert("네트워크 로그인 대기 중입니다.", "error");
+          return;
+        }
+        const cleanCode = roomInput.trim().toUpperCase();
+        if (!cleanCode) {
+          showAlert("참여할 방 코드를 입력하세요.", "error");
+          return;
+        }
+        if (!nicknameInput.trim()) {
+          showAlert("닉네임을 입력해 주세요.", "error");
+          return;
+        }
+
+        sfx.playSelect();
+        const { db, doc, getDoc, updateDoc, appId } = window.FBASE;
+        const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', cleanCode);
+
+        try {
+          const roomSnap = await getDoc(roomRef);
+          if (!roomSnap.exists()) {
+            showAlert("해당 방 코드를 찾을 수 없습니다. 다시 확인해 주세요.", "error");
+            return;
+          }
+
+          const currentRoomData = roomSnap.data();
+          if (currentRoomData.players.length >= 8) {
+            showAlert("이미 정원이 가득 찬 방(최대 8명)입니다.", "error");
+            return;
+          }
+
+          // Check if player already registered
+          const isRegistered = currentRoomData.players.some(p => p.userId === user.uid);
+          let updatedPlayers = [...currentRoomData.players];
+
+          if (!isRegistered) {
+            const nextIdx = updatedPlayers.length;
+            const newPlayer = {
+              id: Date.now(),
+              name: nicknameInput.trim(),
+              score: 0,
+              color: PRESET_COLORS[nextIdx % PRESET_COLORS.length],
+              textColor: PRESET_COLORS[nextIdx % PRESET_COLORS.length].replace('bg-', 'text-'),
+              icon: PRESET_ICONS[nextIdx % PRESET_ICONS.length],
+              userId: user.uid
+            };
+            updatedPlayers.push(newPlayer);
+          }
+
+          const logs = [...(currentRoomData.gameLog || [])];
+          logs.unshift(`🍳 ${nicknameInput.trim()}님이 대기실에 입장했습니다.`);
+
+          await updateDoc(roomRef, {
+            players: updatedPlayers,
+            gameLog: logs.slice(0, 20)
+          });
+
+          setRoomId(cleanCode);
+          setIsOnlineMode(true);
+          setIsHost(false);
+          setJoinedRoom(true);
+          subscribeToRoom(cleanCode);
+          showAlert(`성공적으로 입장했습니다!`, "success");
+
+        } catch (err) {
+          console.error("Failed to join room:", err);
+          showAlert("방 입장 도중 오류가 발생했습니다.", "error");
+        }
+      };
+
+      const handleSetupChange = (key, value) => {
+        sfx.playSelect();
+        const updates = { [key]: value };
+        setGameState(prev => ({ ...prev, ...updates }));
+        syncToFirebase(updates);
+      };
+
+      const addLog = (message) => {
+        const nextLogs = [message, ...gameState.gameLog.slice(0, 19)];
+        setGameState(prev => ({ ...prev, gameLog: nextLogs }));
+        syncToFirebase({ gameLog: nextLogs });
+      };
+
+      const toggleMute = () => {
+        sfx.muted = !isMuted;
+        setIsMuted(!isMuted);
+      };
+
+      const showAlert = (text, type = 'info', duration = 2500) => {
+        setAlertMsg({ text, type });
+        if (duration > 0) {
+          setTimeout(() => {
+            setAlertMsg(prev => prev.text === text ? { text: '', type: 'info' } : prev);
+          }, duration);
+        }
+      };
+
+      const startGame = () => {
+        let baseIngredients = [];
+        if (gameState.gridSize === 16) {
+          baseIngredients = [
+            'bun', 'bun', 'bun', 'bun',
+            'patty', 'patty', 'patty',
+            'tomato', 'tomato', 'tomato',
+            'cheese', 'cheese', 'cheese',
+            'lettuce', 'lettuce', 'lettuce'
+          ];
+        } else if (gameState.gridSize === 20) {
+          baseIngredients = [
+            'bun', 'bun', 'bun', 'bun', 'bun',
+            'patty', 'patty', 'patty',
+            'tomato', 'tomato', 'tomato',
+            'cheese', 'cheese', 'cheese',
+            'lettuce', 'lettuce', 'lettuce',
+            'bacon', 'bacon', 'bacon'
+          ];
+        } else {
+          baseIngredients = [
+            'bun', 'bun', 'bun', 'bun', 'bun', 'bun',
+            'patty', 'patty', 'patty', 'patty',
+            'tomato', 'tomato', 'tomato', 'tomato',
+            'cheese', 'cheese', 'cheese', 'cheese',
+            'lettuce', 'lettuce', 'lettuce', 'lettuce',
+            'bacon', 'bacon', 'bacon'
+          ];
+        }
+
+        const shuffle = (array) => {
+          const arr = [...array];
+          for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+          }
+          return arr;
+        };
+
+        const shuffledTypes = shuffle(baseIngredients);
+        const newTiles = shuffledTypes.map((type, index) => ({
+          id: index,
+          type,
+          isFlipped: false,
+          isMatched: false
+        }));
+
+        let selectedRecipes = [...RECIPES_POOL];
+        if (gameState.recipeFilter === 'short') {
+          selectedRecipes = RECIPES_POOL.filter(r => r.ingredients.length === 3);
+        } else if (gameState.recipeFilter === 'medium') {
+          selectedRecipes = RECIPES_POOL.filter(r => r.ingredients.length === 4);
+        } else if (gameState.recipeFilter === 'long') {
+          selectedRecipes = RECIPES_POOL.filter(r => r.ingredients.length >= 5);
+        }
+
+        const shuffledRecipes = shuffle(selectedRecipes);
+        let finalPool = [...shuffledRecipes];
+        while (finalPool.length < 5) {
+          finalPool = [...finalPool, ...shuffle(selectedRecipes)];
+        }
+
+        const initialActive = finalPool.slice(0, 3);
+        const pool = finalPool.slice(3);
+
+        const freshPlayers = gameState.players.map(p => ({ ...p, score: 0 }));
+
+        const startingSetup = {
+          tiles: newTiles,
+          activeRecipes: initialActive,
+          recipePool: pool,
+          players: freshPlayers,
+          currentPlayerIndex: 0,
+          currentAction: 'explore',
+          exploredTileIds: [],
+          challengeTargetRecipe: null,
+          challengeStep: 0,
+          challengeFlippedTileIds: [],
+          gamePhase: 'playing',
+          gameLog: ['🎮 게임이 시작되었습니다! 맛있는 버거 요리를 시작해 봅시다.']
+        };
+
+        setGameState(prev => ({ ...prev, ...startingSetup }));
+        syncToFirebase(startingSetup);
+
+        setTimeLeft(45);
+        setIsTimerActive(true);
+      };
+
+      useEffect(() => {
+        if (isTimerActive && timeLeft > 0 && gameState.gamePhase === 'playing') {
+          timerRef.current = setTimeout(() => {
+            setTimeLeft(prev => prev - 1);
+          }, 1000);
+        } else if (timeLeft === 0 && gameState.gamePhase === 'playing') {
+          showAlert(`시간이 초과되었습니다! 다음 순서로 넘어갑니다.`, 'error');
+          sfx.playFail();
+          nextTurn();
+        }
+        return () => clearTimeout(timerRef.current);
+      }, [timeLeft, isTimerActive, gameState.gamePhase]);
+
+      const nextTurn = () => {
+        const nextIdx = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+        const nextPlayer = gameState.players[nextIdx];
+
+        const turnUpdates = {
+          exploredTileIds: [],
+          challengeTargetRecipe: null,
+          challengeStep: 0,
+          challengeFlippedTileIds: [],
+          currentAction: 'explore',
+          tiles: gameState.tiles.map(t => ({ ...t, isFlipped: false })),
+          currentPlayerIndex: nextIdx,
+          gameLog: [`🔄 ${nextPlayer.name}님의 차례가 시작되었습니다.`, ...gameState.gameLog].slice(0, 20)
+        };
+
+        setGameState(prev => ({ ...prev, ...turnUpdates }));
+        syncToFirebase(turnUpdates);
+        setTimeLeft(45);
+        showAlert(`${nextPlayer.name}님의 차례입니다!`, 'info');
+      };
+
+      const handleExploreTile = (tileId) => {
+        if (gameState.currentAction !== 'explore') return;
+        const targetTile = gameState.tiles.find(t => t.id === tileId);
+        if (targetTile.isFlipped) return;
+
+        if (gameState.exploredTileIds.length >= 2) {
+          showAlert('한 번에 최대 2개의 타일까지만 탐색할 수 있습니다.', 'info');
+          return;
+        }
+
+        sfx.playFlip();
+
+        const nextTiles = gameState.tiles.map(t => t.id === tileId ? { ...t, isFlipped: true } : t);
+        const nextExplored = [...gameState.exploredTileIds, tileId];
+
+        const updated = {
+          tiles: nextTiles,
+          exploredTileIds: nextExplored,
+          gameLog: [`🔍 ${gameState.players[gameState.currentPlayerIndex].name}님이 [${INGREDIENTS_INFO[targetTile.type].name}] 타일을 탐색했습니다.`, ...gameState.gameLog].slice(0, 20)
+        };
+
+        setGameState(prev => ({ ...prev, ...updated }));
+        syncToFirebase(updated);
+
+        if (nextExplored.length === 2) {
+          showAlert('2개 타일 탐색 완료! 기억한 후 "탐색 차례 마치기"를 누르세요.', 'success');
+        }
+      };
+
+      const handleEndExplore = () => {
+        sfx.playSelect();
+        nextTurn();
+      };
+
+      const startChallenge = (recipe) => {
+        if (gameState.currentAction === 'challenge') return;
+        sfx.playSelect();
+
+        const challengeSetup = {
+          tiles: gameState.tiles.map(t => ({ ...t, isFlipped: false })),
+          exploredTileIds: [],
+          currentAction: 'challenge',
+          challengeTargetRecipe: recipe,
+          challengeStep: 0,
+          challengeFlippedTileIds: [],
+          gameLog: [`🔥 ${gameState.players[gameState.currentPlayerIndex].name}님이 [${recipe.name}] 만들기에 돌입했습니다!`, ...gameState.gameLog].slice(0, 20)
+        };
+
+        setGameState(prev => ({ ...prev, ...challengeSetup }));
+        syncToFirebase(challengeSetup);
+
+        showAlert(`첫 번째 재료인 '${INGREDIENTS_INFO[recipe.ingredients[0]].name}' 타일을 뒤집으세요!`, 'info', 3000);
+      };
+
+      const handleChallengeTile = (tileId) => {
+        if (gameState.currentAction !== 'challenge' || !gameState.challengeTargetRecipe) return;
+
+        const clickedTile = gameState.tiles.find(t => t.id === tileId);
+        if (clickedTile.isFlipped) return;
+
+        sfx.playFlip();
+
+        const neededType = gameState.challengeTargetRecipe.ingredients[gameState.challengeStep];
+        const isCorrect = clickedTile.type === neededType;
+
+        const nextTiles = gameState.tiles.map(t => t.id === tileId ? { ...t, isFlipped: true } : t);
+
+        if (isCorrect) {
+          const nextStep = gameState.challengeStep + 1;
+          const nextFlippedIds = [...gameState.challengeFlippedTileIds, tileId];
+
+          const matchedName = INGREDIENTS_INFO[clickedTile.type].name;
+          const updatedLogs = [`✅ 알맞은 재료! '${matchedName}'를 쌓았습니다.`, ...gameState.gameLog].slice(0, 20);
+
+          if (nextStep === gameState.challengeTargetRecipe.ingredients.length) {
+            sfx.playSuccess();
+            const pointsToAdd = gameState.challengeTargetRecipe.points;
+            
+            const freshPlayers = gameState.players.map((p, idx) => {
+              if (idx === gameState.currentPlayerIndex) {
+                const newScore = p.score + pointsToAdd;
+                if (newScore >= gameState.winningScore) {
+                  setTimeout(() => {
+                    const overState = { gamePhase: 'gameover' };
+                    setGameState(prev => ({ ...prev, ...overState }));
+                    syncToFirebase(overState);
+                    sfx.playSuccess();
+                  }, 1200);
+                }
+                return { ...p, score: newScore };
+              }
+              return p;
+            });
+
+            const successUpdates = {
+              tiles: nextTiles,
+              players: freshPlayers,
+              gameLog: [`🎉 완성! ${gameState.players[gameState.currentPlayerIndex].name}님이 [${gameState.challengeTargetRecipe.name}]를 만들고 🧑‍🍳 점수 ${pointsToAdd}점을 얻었습니다!`, ...updatedLogs].slice(0, 20)
+            };
+
+            setGameState(prev => ({ ...prev, ...successUpdates }));
+            syncToFirebase(successUpdates);
+            showAlert(`[도전 성공 🎉] 버거를 완벽히 완성했습니다! (+${pointsToAdd}점)`, 'success', 3000);
+
+            setTimeout(() => {
+              replaceCompletedRecipe(gameState.challengeTargetRecipe.id);
+            }, 1800);
+
+          } else {
+            const nextNeededName = INGREDIENTS_INFO[gameState.challengeTargetRecipe.ingredients[nextStep]].name;
+            const stepUpdates = {
+              tiles: nextTiles,
+              challengeStep: nextStep,
+              challengeFlippedTileIds: nextFlippedIds,
+              gameLog: updatedLogs
+            };
+            setGameState(prev => ({ ...prev, ...stepUpdates }));
+            syncToFirebase(stepUpdates);
+            showAlert(`정확합니다! 다음 재료인 '${nextNeededName}'를 뒤집으세요.`, 'success');
+          }
+
+        } else {
+          sfx.playFail();
+          const wrongName = INGREDIENTS_INFO[clickedTile.type].name;
+          const expectedName = INGREDIENTS_INFO[neededType].name;
+          
+          const failUpdates = {
+            tiles: nextTiles,
+            gameLog: [`💥 조리 실패! '${expectedName}' 대신 잘못된 재료 '${wrongName}'를 찾았습니다.`, ...gameState.gameLog].slice(0, 20)
+          };
+
+          setGameState(prev => ({ ...prev, ...failUpdates }));
+          syncToFirebase(failUpdates);
+          showAlert(`[도전 실패 💥] '${expectedName}'가 필요하지만 '${wrongName}'였습니다!`, 'error', 2000);
+
+          setTimeout(() => {
+            nextTurn();
+          }, 2000);
+        }
+      };
+
+      const replaceCompletedRecipe = (completedId) => {
+        let nextRecipe = null;
+        let newPool = [...gameState.recipePool];
+        let baseFilterPool = [...RECIPES_POOL];
+
+        if (gameState.recipeFilter === 'short') {
+          baseFilterPool = RECIPES_POOL.filter(r => r.ingredients.length === 3);
+        } else if (gameState.recipeFilter === 'medium') {
+          baseFilterPool = RECIPES_POOL.filter(r => r.ingredients.length === 4);
+        } else if (gameState.recipeFilter === 'long') {
+          baseFilterPool = RECIPES_POOL.filter(r => r.ingredients.length >= 5);
+        }
+
+        if (newPool.length > 0) {
+          nextRecipe = newPool[0];
+          newPool = newPool.slice(1);
+        } else {
+          const recycled = [...baseFilterPool].sort(() => Math.random() - 0.5);
+          nextRecipe = recycled[0];
+          newPool = recycled.slice(1);
+        }
+
+        const updatedRecipes = gameState.activeRecipes.map(r => r.id === completedId ? nextRecipe : r);
+        const updates = {
+          activeRecipes: updatedRecipes,
+          recipePool: newPool
+        };
+
+        setGameState(prev => ({ ...prev, ...updates }));
+        syncToFirebase(updates);
+        nextTurn();
+      };
+
+      const forceReshuffleField = () => {
+        sfx.playSelect();
+        const existingTypes = gameState.tiles.map(t => t.type);
+        const shuffled = existingTypes.sort(() => Math.random() - 0.5);
+        const updates = {
+          tiles: shuffled.map((type, idx) => ({
+            id: idx,
+            type,
+            isFlipped: false,
+            isMatched: false
+          })),
+          gameLog: [`🔄 누군가 주방의 재료 보드를 한 번 섞었습니다!`, ...gameState.gameLog].slice(0, 20)
+        };
+        setGameState(prev => ({ ...prev, ...updates }));
+        syncToFirebase(updates);
+        showAlert('타일 보드가 무작위로 다시 섞였습니다!', 'info');
+      };
+
+      const handleGiveUpChallenge = () => {
+        sfx.playFail();
+        const updates = {
+          gameLog: [`🛑 ${gameState.players[gameState.currentPlayerIndex].name}님이 도전을 포기했습니다.`, ...gameState.gameLog].slice(0, 20)
+        };
+        setGameState(prev => ({ ...prev, ...updates }));
+        syncToFirebase(updates);
+        nextTurn();
+      };
+
+      const resetToSetup = () => {
+        sfx.playSelect();
+        const updates = { gamePhase: 'setup' };
+        setGameState(prev => ({ ...prev, ...updates }));
+        syncToFirebase(updates);
+        setIsTimerActive(false);
+      };
+
+      const handleExitOnlineRoom = () => {
+        sfx.playSelect();
+        if (firebaseUnsubscribeRef.current) {
+          firebaseUnsubscribeRef.current();
+        }
+        setIsOnlineMode(false);
+        setJoinedRoom(false);
+        setRoomId('');
+        setIsHost(false);
+        setGameState(prev => ({ ...prev, gamePhase: 'setup' }));
+      };
+
+      const getGridColsClass = () => {
+        if (gameState.gridSize === 16) return 'grid-cols-4';
+        if (gameState.gridSize === 20) return 'grid-cols-5';
+        return 'grid-cols-6';
+      };
+
+      const renderBurgerLayers = (ingredientsArray) => {
+        return (
+          <div className="flex flex-col-reverse items-center justify-center w-full space-y-reverse space-y-0.5 md:space-y-1 py-1">
+            {ingredientsArray.map((ing, idx) => {
+              const isTopBun = idx === ingredientsArray.length - 1 && ing === 'bun';
+              const isBottomBun = idx === 0 && ing === 'bun';
+              
+              let styleStr = "w-11/12 rounded shadow-sm ";
+              let name = INGREDIENTS_INFO[ing].name;
+              
+              if (isTopBun) {
+                styleStr += "bg-gradient-to-r from-amber-400 to-amber-600 border-b-2 border-amber-700 rounded-t-2xl h-5 sm:h-6";
+              } else if (isBottomBun) {
+                styleStr += "bg-gradient-to-r from-amber-500 to-amber-600 border-t border-amber-700 rounded-b-lg h-3 sm:h-4";
+              } else if (ing === 'patty') {
+                styleStr += "bg-gradient-to-r from-amber-800 to-amber-950 border-y border-amber-900 rounded-md h-3 sm:h-4";
+              } else if (ing === 'cheese') {
+                styleStr += "bg-gradient-to-r from-yellow-300 to-yellow-500 border-b border-yellow-600 rounded h-3 sm:h-3.5";
+              } else if (ing === 'tomato') {
+                styleStr += "bg-gradient-to-r from-red-500 to-red-600 border-b border-red-700 rounded-md h-3 sm:h-3.5";
+              } else if (ing === 'lettuce') {
+                styleStr += "bg-gradient-to-r from-emerald-400 to-emerald-600 border-b border-emerald-700 rounded-lg h-3 sm:h-3.5";
+              } else if (ing === 'bacon') {
+                styleStr += "bg-gradient-to-r from-rose-500 to-rose-700 border-y border-rose-800 rounded-sm h-2.5 sm:h-3";
+              }
+
+              return (
+                <div 
+                  key={idx} 
+                  className={`${styleStr} text-center flex items-center justify-center font-bold text-white shadow-sm border border-black/10 transition-all duration-300`}
+                >
+                  <span className="scale-75 sm:scale-90 text-[8px] sm:text-[10px] text-shadow truncate">{name}</span>
+                </div>
+              );
+            })}
+          </div>
+        );
+      };
+
+      // Control permission helper
+      const canIControl = () => {
+        if (!isOnlineMode) return true; // Local play is always controllable
+        if (!user) return false;
+        if (isHost) return true; // Host always can control (safety feature for class)
+        
+        const activePlayer = gameState.players[gameState.currentPlayerIndex];
+        return activePlayer && activePlayer.userId === user.uid;
+      };
+
+      if (gameState.gamePhase === 'setup') {
+        return (
+          <div className="max-w-4xl mx-auto px-2 py-3">
+            {/* Header banner */}
+            <div className="text-center mb-3">
+              <h1 className="text-3xl md:text-5xl font-jua text-amber-500 mb-1 drop-shadow-sm">
+                🍔 도전! 버거 셰프 🧑‍🍳
+              </h1>
+              <p className="text-xs md:text-sm text-slate-600 font-bold">
+                기억력과 알고리즘을 겨루는 온·오프라인 하이브리드 교실 주방!
+              </p>
+            </div>
+
+            {/* TAB INTERFACE: Local vs Online Multiplayer */}
+            <div className="flex bg-white rounded-xl p-1 mb-3 border border-slate-200 shadow-sm max-w-md mx-auto">
+              <button
+                onClick={() => { sfx.playSelect(); setActiveTab('local'); setIsOnlineMode(false); }}
+                className={`flex-1 py-2 rounded-lg text-sm font-jua flex items-center justify-center gap-1.5 transition-all ${
+                  activeTab === 'local' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <i className="fa-solid fa-desktop"></i> 기기 한대로 함께하기
+              </button>
+              <button
+                onClick={() => { sfx.playSelect(); setActiveTab('online'); }}
+                className={`flex-1 py-2 rounded-lg text-sm font-jua flex items-center justify-center gap-1.5 transition-all ${
+                  activeTab === 'online' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <i className="fa-solid fa-globe animate-pulse"></i> 실시간 온라인 멀티
+              </button>
+            </div>
+
+            {}
+            {activeTab === 'online' && !joinedRoom ? (
+              /* ONLINE ROOM CREATION & JOIN WINDOW */
+              <div className="bg-white rounded-2xl shadow-lg p-5 border-2 border-amber-400 max-w-md mx-auto">
+                <h2 className="text-xl font-jua text-slate-700 mb-3 pb-1 border-b flex items-center gap-2">
+                  <i className="fa-solid fa-users-rectangle text-amber-500"></i> 온라인 멀티플레이 세팅
+                </h2>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1">내 이름 (닉네임)</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border rounded-xl font-bold focus:ring-2 focus:ring-amber-400 outline-none"
+                      placeholder="예) 지우, 셰프킴"
+                      value={nicknameInput}
+                      onChange={(e) => setNicknameInput(e.target.value)}
+                      maxLength={8}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100 flex flex-col justify-between">
+                      <p className="text-[10px] text-slate-500 leading-snug mb-2">내가 방을 개설하고 학생들을 초대합니다.</p>
+                      <button
+                        onClick={handleCreateRoom}
+                        className="w-full bg-amber-500 hover:bg-amber-600 text-white font-jua text-xs py-2 rounded-lg shadow-sm"
+                      >
+                        🏰 새 방 만들기
+                      </button>
+                    </div>
+
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col justify-between">
+                      <div className="mb-2">
+                        <label className="block text-[10px] text-slate-500 mb-0.5">방 코드 4자리 입력</label>
+                        <input
+                          type="text"
+                          className="w-full px-2 py-1 text-center font-bold text-xs border rounded uppercase outline-none"
+                          placeholder="A1B2"
+                          value={roomInput}
+                          onChange={(e) => setRoomInput(e.target.value)}
+                        />
+                      </div>
+                      <button
+                        onClick={handleJoinRoom}
+                        className="w-full bg-slate-700 hover:bg-slate-800 text-white font-jua text-xs py-2 rounded-lg shadow-sm"
+                      >
+                        🔑 방 참여하기
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* STANDARD LOBBY SETUP (LOCAL OR ONLINE LOBBY) */
+              <div className="bg-white rounded-2xl shadow-lg p-4 border-2 border-amber-400">
+                <div className="flex justify-between items-center mb-4 pb-1.5 border-b-2 border-amber-50">
+                  <h2 className="text-xl font-jua text-slate-700 flex items-center gap-1.5">
+                    <i className="fa-solid fa-gears text-amber-500"></i> 
+                    {isOnlineMode ? `온라인 대기실 [방 코드: ${roomId}]` : '오프라인 요리 교실 게임 설정'}
+                  </h2>
+                  {isOnlineMode && (
+                    <button
+                      onClick={handleExitOnlineRoom}
+                      className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded text-[10px] font-bold"
+                    >
+                      <i className="fa-solid fa-door-open"></i> 온라인 방 나가기
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Left col: Players List */}
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="text-sm font-bold text-amber-600 flex items-center gap-1.5">
+                        <i className="fa-solid fa-users"></i> 참가 셰프 ({gameState.players.length}인)
+                      </h3>
+                      {!isOnlineMode && (
+                        <button
+                          onClick={addLocalPlayer}
+                          className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all shadow-sm"
+                        >
+                          <i className="fa-solid fa-plus"></i> 학생 추가
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+                      {gameState.players.map((p, idx) => (
+                        <div key={p.id} className="flex items-center gap-1.5 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                          <select 
+                            className="text-lg bg-white p-1 rounded border border-slate-300"
+                            value={p.icon}
+                            disabled={isOnlineMode && p.userId !== user?.uid}
+                            onChange={(e) => handleIconChange(p.id, e.target.value)}
+                          >
+                            {PRESET_ICONS.map(icon => <option key={icon} value={icon}>{icon}</option>)}
+                          </select>
+                          <input
+                            type="text"
+                            className="flex-1 px-2 py-1 font-bold text-sm rounded border border-slate-300 focus:ring-1 focus:ring-amber-400 outline-none"
+                            value={p.name}
+                            disabled={isOnlineMode && p.userId !== user?.uid}
+                            onChange={(e) => handleNameChange(p.id, e.target.value)}
+                            maxLength={8}
+                          />
+                          <span className={`w-2.5 h-2.5 rounded-full ${p.color.split(' ')[0]}`}></span>
+                          {!isOnlineMode && (
+                            <button
+                              onClick={() => deleteLocalPlayer(p.id)}
+                              className="w-6 h-6 flex items-center justify-center bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-md transition-colors"
+                              title="학생 삭제"
+                            >
+                              <i className="fa-solid fa-trash-can text-xs"></i>
+                            </button>
+                          )}
+                          {isOnlineMode && p.userId === user?.uid && (
+                            <span className="text-[9px] bg-amber-200 text-amber-900 px-1 rounded font-bold">나</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Right col: Settings & Play Button */}
+                  <div className="flex flex-col justify-between space-y-4">
+                    {/* Game setups are disabled for non-host online players */}
+                    <div className={isOnlineMode && !isHost ? 'opacity-50 pointer-events-none' : ''}>
+                      {/* Recipe Difficulty selection */}
+                      <div className="mb-3">
+                        <h3 className="text-sm font-bold text-amber-600 mb-1.5 flex items-center gap-1.5">
+                          <i className="fa-solid fa-utensils"></i> 도전 레시피 난이도 단계 선택
+                        </h3>
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {[
+                            { id: 'all', label: '전체 혼합', desc: '3~6단계' },
+                            { id: 'short', label: '초급 버거', desc: '3단계 전용' },
+                            { id: 'medium', label: '중급 버거', desc: '4단계 전용' },
+                            { id: 'long', label: '고급 버거', desc: '5단계 이상' }
+                          ].map((item) => (
+                            <button
+                              key={item.id}
+                              onClick={() => handleSetupChange('recipeFilter', item.id)}
+                              className={`py-1.5 px-1 rounded-xl text-center border-2 transition-all ${
+                                gameState.recipeFilter === item.id 
+                                  ? 'bg-amber-500 text-white border-amber-600 shadow-sm' 
+                                  : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
+                              }`}
+                            >
+                              <div className="text-[11px] font-bold">{item.label}</div>
+                              <div className="text-[9px] opacity-90">{item.desc}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Grid Size Selection */}
+                      <div className="mb-3">
+                        <h3 className="text-sm font-bold text-amber-600 mb-1.5 flex items-center gap-1.5">
+                          <i className="fa-solid fa-layer-group"></i> 주방 재료판 크기 (기억 난이도)
+                        </h3>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {[16, 20, 24].map((size) => (
+                            <button
+                              key={size}
+                              onClick={() => handleSetupChange('gridSize', size)}
+                              className={`py-1.5 rounded-lg font-bold border transition-all text-xs ${
+                                gameState.gridSize === size 
+                                  ? 'bg-amber-100 border-amber-400 text-amber-800 font-bold' 
+                                  : 'bg-white border-slate-200 text-slate-600'
+                              }`}
+                            >
+                              {size === 16 ? '초급 (16칸)' : size === 20 ? '중급 (20칸)' : '고급 (24칸)'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Winning Score Selection */}
+                      <div>
+                        <h3 className="text-sm font-bold text-amber-600 mb-1.5 flex items-center gap-1.5">
+                          <i className="fa-solid fa-trophy"></i> 승리 목표 점수 (획득할 모자 수)
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          {[3, 5, 7, 10].map((score) => (
+                            <button
+                              key={score}
+                              onClick={() => handleSetupChange('winningScore', score)}
+                              className={`flex-1 py-1 rounded-lg text-xs font-jua border transition-all ${
+                                gameState.winningScore === score
+                                  ? 'bg-amber-500 border-amber-600 text-white'
+                                  : 'bg-white border-slate-200 text-slate-600'
+                              }`}
+                            >
+                              {score}개 🧑‍🍳
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Play Buttons */}
+                    {isOnlineMode && !isHost ? (
+                      <div className="text-center p-3 bg-amber-50 border rounded-xl text-xs font-bold text-slate-600 animate-pulse">
+                        <i className="fa-solid fa-spinner fa-spin mr-1"></i> 방장이 게임을 시작하기를 기다리고 있습니다...
+                      </div>
+                    ) : (
+                      <button
+                        onClick={startGame}
+                        className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-jua text-lg py-2.5 rounded-xl shadow-md transform hover:-translate-y-0.5 transition-all active:translate-y-0"
+                      >
+                        🚀 레시피 매칭 시작!
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Compact instructions */}
+            <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-[11px] text-slate-600 leading-relaxed">
+              <strong>💡 간편 온라인 플레이 가이드:</strong><br />
+              1. 방장이 <strong>실시간 온라인 멀티</strong> 탭에서 닉네임을 쓰고 방을 생성하면 상단에 <strong>방 코드 (예: B3F9)</strong>가 뜹니다.<br />
+              2. 다른 학생들은 각자 자신의 기기로 동일한 페이지에 접속한 후 방 코드를 입력하고 입장합니다.<br />
+              3. 모든 조작이 실시간으로 동기화되며, 오직 <strong>현재 주방 셰프 차례인 학생</strong>만 타일을 뒤집어 탐색하거나 레시피에 도전할 수 있습니다.
+            </div>
+          </div>
+        );
+      }
+
+      if (gameState.gamePhase === 'playing') {
+        const activePlayer = gameState.players[gameState.currentPlayerIndex];
+        const isMyTurn = isOnlineMode ? (activePlayer && activePlayer.userId === user?.uid) : true;
+        const myAuthority = canIControl();
+
+        return (
+          <div className="max-w-6xl mx-auto flex flex-col justify-between">
+            
+            {}
+            {/* TOP COMPACT HEADER */}
+            <div className="flex items-center justify-between gap-1 mb-2 bg-white/95 backdrop-blur rounded-xl p-2 shadow-sm border-b-2 border-amber-400">
+              <div className="flex items-center gap-1.5">
+                <span className="text-lg md:text-xl font-jua text-amber-500">🍔 도전! 버거 셰프</span>
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md text-[10px] font-bold">
+                  목표: {gameState.winningScore}점
+                </span>
+                {isOnlineMode && (
+                  <span className="px-2 py-0.5 bg-rose-100 text-rose-800 rounded-md text-[10px] font-bold animate-pulse">
+                    방: {roomId}
+                  </span>
+                )}
+              </div>
+              
+              {/* Toolbar utility */}
+              <div className="flex items-center gap-1">
+                <button 
+                  onClick={() => setShowRules(true)} 
+                  className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-bold"
+                >
+                  <i className="fa-solid fa-book-open"></i> 규칙
+                </button>
+                {myAuthority && (
+                  <button 
+                    onClick={forceReshuffleField} 
+                    className="px-2 py-1 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded text-[10px] font-bold"
+                  >
+                    <i className="fa-solid fa-shuffle"></i> 섞기
+                  </button>
+                )}
+                <button 
+                  onClick={toggleMute} 
+                  className="w-6 h-6 flex items-center justify-center bg-slate-100 rounded text-[10px] text-slate-700"
+                >
+                  <i className={`fa-solid ${isMuted ? 'fa-volume-xmark' : 'fa-volume-high'}`}></i>
+                </button>
+                {isHost || !isOnlineMode ? (
+                  <button 
+                    onClick={resetToSetup} 
+                    className="px-2 py-1 bg-rose-500 text-white rounded text-[10px] font-bold"
+                  >
+                    <i className="fa-solid fa-arrow-left"></i> 종료
+                  </button>
+                ) : (
+                  <button 
+                    onClick={handleExitOnlineRoom} 
+                    className="px-2 py-1 bg-slate-500 text-white rounded text-[10px] font-bold"
+                  >
+                    <i className="fa-solid fa-door-open"></i> 나가기
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* SCREEN WIDE WARNING ALERTS */}
+            {alertMsg.text && (
+              <div className={`fixed top-3 left-1/2 -translate-x-1/2 z-50 shadow-md rounded-xl py-1.5 px-4 text-center font-jua text-sm transition-all animate-bounce border ${
+                alertMsg.type === 'success' 
+                  ? 'bg-emerald-500 border-emerald-600 text-white' 
+                  : alertMsg.type === 'error' 
+                    ? 'bg-red-500 border-red-600 text-white' 
+                    : 'bg-amber-100 border-amber-300 text-amber-900'
+              }`}>
+                {alertMsg.text}
+              </div>
+            )}
+
+            {/* MAIN PLAYSPACE RESPONSIVE LAYOUT */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
+              
+              {/* LEFT COLUMN: PLAYERS SCOREBOARD & LOGS (3 COLS) */}
+              <div className="md:col-span-3 flex flex-col gap-2">
+                
+                {/* ACTIVE TURN CARD */}
+                <div className="bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-xl p-2.5 shadow-sm">
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="text-[10px] text-slate-400 font-bold">남은 시간</span>
+                    <span className={`font-jua text-base ${timeLeft <= 10 ? 'text-rose-400 animate-pulse' : 'text-amber-400'}`}>
+                      <i className="fa-regular fa-clock mr-0.5"></i> {timeLeft}초
+                    </span>
+                  </div>
+                  
+                  <div className="p-1.5 rounded bg-white/10 flex items-center gap-2">
+                    <span className="text-xl">{activePlayer?.icon}</span>
+                    <div className="leading-tight">
+                      <div className="text-[9px] text-amber-300 font-bold">현재 요리사</div>
+                      <div className="text-sm font-jua text-white flex items-center gap-1.5">
+                        {activePlayer?.name}
+                        {isOnlineMode && activePlayer?.userId === user?.uid && (
+                          <span className="text-[8px] bg-amber-400 text-amber-950 px-1 py-0.2 rounded font-extrabold animate-pulse">내 차례</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PLAYERS SCOREBOARD */}
+                <div className="bg-white rounded-xl p-2 shadow-sm border border-slate-200">
+                  <h3 className="text-[11px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                    <i className="fa-solid fa-ranking-star text-amber-500"></i> 요리교실 스코어보드
+                  </h3>
+                  <div className="flex flex-wrap md:flex-col gap-1">
+                    {gameState.players.map((p, idx) => {
+                      const isCurrent = idx === gameState.currentPlayerIndex;
+                      return (
+                        <div 
+                          key={p.id} 
+                          className={`flex-1 min-w-[70px] md:w-full flex items-center justify-between p-1 md:p-1.5 rounded border transition-all text-center md:text-left ${
+                            isCurrent 
+                              ? 'bg-amber-50 border-amber-400 font-bold ring-1 ring-amber-300' 
+                              : 'bg-slate-50 border-slate-100'
+                          }`}
+                        >
+                          <div className="flex flex-col md:flex-row items-center gap-1 w-full md:w-auto">
+                            <span className="text-lg md:text-xl">{p.icon}</span>
+                            <span className="text-[9px] md:text-xs block truncate max-w-[50px] md:max-w-none">
+                              {p.name} {isOnlineMode && p.userId === user?.uid ? '(나)' : ''}
+                            </span>
+                          </div>
+                          <span className="font-jua text-amber-600 text-xs md:text-sm whitespace-nowrap ml-1">
+                            🧑‍🍳{p.score}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* GAME PLAY LOGS */}
+                <div className="bg-white rounded-xl p-2 shadow-sm border border-slate-200 hidden md:flex flex-col h-28 justify-between">
+                  <h4 className="text-[10px] font-bold text-slate-400 border-b pb-0.5 mb-1 flex items-center gap-1">
+                    <i className="fa-solid fa-receipt"></i> 실시간 주방 소식
+                  </h4>
+                  <div className="flex-1 overflow-y-auto text-[10px] text-slate-500 space-y-0.5 pr-0.5">
+                    {gameState.gameLog.length === 0 ? (
+                      <p className="text-center text-slate-400 pt-4">기록이 없습니다.</p>
+                    ) : (
+                      gameState.gameLog.slice(0, 5).map((log, idx) => (
+                        <div key={idx} className="border-b border-dashed border-slate-50 pb-0.5 truncate">
+                          {log}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              {}
+              {/* RIGHT COLUMN: RECIPIES & TILE BOARD (9 COLS) */}
+              <div className="md:col-span-9 flex flex-col gap-2">
+
+                {/* ACTIVE RECIPES */}
+                <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-2 shadow-sm">
+                  <h3 className="font-jua text-xs text-amber-800 mb-1.5 flex items-center gap-1">
+                    <i className="fa-solid fa-utensils"></i> 오늘의 주문 대기열 (3가지 레시피)
+                  </h3>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {gameState.activeRecipes.map((recipe) => {
+                      if (!recipe) return null;
+                      const isChallengingThis = gameState.currentAction === 'challenge' && gameState.challengeTargetRecipe?.id === recipe.id;
+                      const isOtherRecipeActive = gameState.currentAction === 'challenge' && gameState.challengeTargetRecipe?.id !== recipe.id;
+
+                      return (
+                        <div 
+                          key={recipe.id}
+                          className={`bg-white rounded-xl p-1.5 border transition-all flex flex-col justify-between ${
+                            isChallengingThis 
+                              ? 'border-emerald-500 ring-2 ring-emerald-200 scale-102 shadow' 
+                              : isOtherRecipeActive 
+                                ? 'opacity-30 border-slate-100 cursor-not-allowed'
+                                : 'border-slate-200 hover:border-amber-300'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex justify-between items-center text-[9px] mb-1">
+                              <span className="font-bold text-[8px] bg-slate-100 px-1 rounded text-slate-500">
+                                {recipe.ingredients.length}단계
+                              </span>
+                              <span className="text-amber-500 font-bold">
+                                {'🧑‍🍳'.repeat(recipe.points)}
+                              </span>
+                            </div>
+
+                            <h4 className="font-jua text-xs text-slate-800 text-center truncate mb-1">
+                              {recipe.name}
+                            </h4>
+
+                            {/* Ultra compact Burger representation */}
+                            <div className="bg-amber-50/30 rounded-lg border border-amber-100/50 p-1 min-h-[75px] sm:min-h-[100px] flex items-center justify-center">
+                              {renderBurgerLayers(recipe.ingredients)}
+                            </div>
+                          </div>
+
+                          <div className="mt-1">
+                            {isChallengingThis ? (
+                              <div className="text-center text-[10px] text-emerald-600 font-bold animate-pulse">
+                                조리 중 ({gameState.challengeStep}/{recipe.ingredients.length})
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => startChallenge(recipe)}
+                                disabled={gameState.currentAction === 'challenge' || !myAuthority}
+                                className={`w-full font-jua text-xs py-1 rounded transition-all ${
+                                  gameState.currentAction === 'challenge' || !myAuthority
+                                    ? 'bg-slate-50 text-slate-300 cursor-not-allowed'
+                                    : 'bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold'
+                                }`}
+                              >
+                                도전하기
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* HUD: CHALLENGER TRAYS */}
+                {gameState.currentAction === 'challenge' && gameState.challengeTargetRecipe && (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-lg">🧑‍🍳</span>
+                      <div>
+                        <h4 className="font-jua text-xs text-emerald-900 leading-tight">
+                          요리 목표: {gameState.challengeTargetRecipe.name}
+                        </h4>
+                        <span className="text-[9px] text-slate-500">맨 아래 재료부터 순서대로 찾으세요!</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      {/* Active Recipe progress indicator */}
+                      <div className="flex items-center bg-white border px-1.5 py-1 rounded gap-1">
+                        {gameState.challengeTargetRecipe.ingredients.map((ing, idx) => {
+                          const isDone = idx < gameState.challengeStep;
+                          const isCurrent = idx === gameState.challengeStep;
+                          return (
+                            <React.Fragment key={idx}>
+                              <div className={`px-1 py-0.5 rounded text-[10px] font-bold flex flex-col items-center ${
+                                isDone 
+                                  ? 'bg-emerald-100 border-emerald-300 text-emerald-800 opacity-60' 
+                                  : isCurrent 
+                                    ? 'bg-amber-400 border-amber-500 text-amber-950 scale-105 ring-1 ring-amber-300 animate-pulse' 
+                                    : 'bg-slate-50 border-slate-100 text-slate-400'
+                              }`}>
+                                <span className="text-xs">{INGREDIENTS_INFO[ing].emoji}</span>
+                              </div>
+                              {idx < gameState.challengeTargetRecipe.ingredients.length - 1 && (
+                                <span className="text-slate-300 text-[8px]">&gt;</span>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+
+                      {myAuthority && (
+                        <button 
+                          onClick={handleGiveUpChallenge}
+                          className="text-[9px] text-rose-500 font-bold border border-rose-300 rounded px-1.5 py-1 hover:bg-rose-50"
+                        >
+                          포기
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* HUD: EXPLORE HUD */}
+                {gameState.currentAction === 'explore' && (
+                  <div className="bg-sky-50 border border-sky-100 rounded-xl p-1.5 flex items-center justify-between text-xs">
+                    <span className="font-bold text-sky-800">
+                      🔍 탐색 행동 (뒤집기 완료: {gameState.exploredTileIds.length}/2)
+                    </span>
+                    {gameState.exploredTileIds.length > 0 && myAuthority && (
+                      <button
+                        onClick={handleEndExplore}
+                        className="bg-sky-500 text-white text-[10px] font-bold px-2 py-1 rounded"
+                      >
+                        탐색 마치기
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {}
+                {/* INTERACTIVE WARNING: Only active player or host can click */}
+                {!myAuthority && (
+                  <div className="bg-rose-100 text-rose-800 border border-rose-200 text-center text-xs py-1 px-2 rounded-lg font-bold animate-pulse">
+                    ⚠️ 다른 셰프의 주방 순서입니다. 동기화된 화면을 함께 확인하세요.
+                  </div>
+                )}
+
+                {/* MAIN GRID: THE KITCHEN PANTRY TILES */}
+                <div className={`bg-amber-950/5 border-2 border-amber-800 p-2 rounded-xl relative shadow-inner ${!myAuthority ? 'pointer-events-none opacity-80' : ''}`}>
+                  <div className={`grid ${getGridColsClass()} gap-1.5 md:gap-2`}>
+                    {gameState.tiles.map((tile) => {
+                      const ingInfo = INGREDIENTS_INFO[tile.type];
+                      const showFront = tile.isFlipped;
+
+                      const handleTileClick = () => {
+                        if (!myAuthority) return;
+                        if (gameState.currentAction === 'explore') {
+                          handleExploreTile(tile.id);
+                        } else if (gameState.currentAction === 'challenge') {
+                          handleChallengeTile(tile.id);
+                        }
+                      };
+
+                      return (
+                        <div
+                          key={tile.id}
+                          onClick={handleTileClick}
+                          className={`flip-card h-14 sm:h-16 rounded-xl cursor-pointer ${showFront ? 'flipped' : ''}`}
+                        >
+                          <div className="flip-card-inner relative w-full h-full duration-300">
+                            
+                            {/* CARD BACK */}
+                            <div className="flip-card-front absolute w-full h-full bg-gradient-to-br from-amber-700 to-amber-900 border border-amber-950 rounded-xl shadow flex flex-col items-center justify-center p-1 text-white hover:brightness-105 active:scale-95">
+                              <span className="text-xl font-jua text-amber-200">{tile.id + 1}</span>
+                              <span className="text-[7px] font-bold text-amber-400/80">🍳 TOUCH</span>
+                            </div>
+
+                            {/* CARD FRONT */}
+                            <div className={`flip-card-back absolute w-full h-full bg-gradient-to-br ${ingInfo.color} border-2 ${ingInfo.borderColor} rounded-xl shadow-inner flex flex-col items-center justify-center p-0.5 text-white`}>
+                              <span className="text-lg md:text-2xl">{ingInfo.emoji}</span>
+                              <span className="text-[7px] md:text-[9px] font-bold bg-black/10 px-1 rounded scale-90 md:scale-100 truncate w-full text-center">
+                                {ingInfo.name}
+                              </span>
+                            </div>
+
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* RULE MANUAL MODAL */}
+            {showRules && (
+              <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-3">
+                <div className="bg-white rounded-2xl max-w-md w-full p-4 border-2 border-amber-400 shadow-xl relative max-h-[90vh] overflow-y-auto">
+                  <button 
+                    onClick={() => { sfx.playSelect(); setShowRules(false); }}
+                    className="absolute top-2 right-2 text-slate-400 text-lg"
+                  >
+                    <i className="fa-solid fa-circle-xmark"></i>
+                  </button>
+
+                  <h3 className="text-lg font-jua text-amber-500 mb-2 border-b-2 pb-1 flex items-center gap-1">
+                    🍔 도전! 버거 셰프 게임 방법
+                  </h3>
+
+                  <div className="space-y-2 text-slate-700 text-[11px] leading-relaxed">
+                    <p><strong>1. 게임의 목표</strong>: 수집한 재료의 위치를 기억하여 대기 중인 버거 레시피를 맨 밑에서부터 순서대로 맞추고, 승리 점수(모자 갯수)에 먼저 도달하세요.</p>
+                    <p><strong>2. 턴의 진행</strong>: 자신의 차례에는 아래 두 가지 행동 중 <span className="text-amber-800">한 가지만</span> 가능합니다.</p>
+                    <ul className="list-disc pl-4 space-y-1">
+                      <li><strong>탐색</strong>: 아무 타일이나 2개 골라 뒤집어 확인합니다. 모두 기억한 뒤 '탐색 마치기'를 눌러 다음 차례로 턴을 넘깁니다.</li>
+                      <li><strong>도전</strong>: 레시피 아래 '도전하기'를 누른 뒤, 맨 하단 재료부터 쌓습니다. 한 개라도 틀리면 도전은 즉시 실패하며 턴이 종료됩니다.</li>
+                    </ul>
+                    <p><strong>3. 레시피 점수</strong>: 성공 시 모자 점수를 획득하며 레시피 카드가 새 카드로 갱신됩니다.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          </div>
+        );
+      }
+
+      if (gameState.gamePhase === 'gameover') {
+        const sortedPlayers = [...gameState.players].sort((a, b) => b.score - a.score);
+        const winner = sortedPlayers[0];
+
+        return (
+          <div className="max-w-md mx-auto px-2 py-4 text-center">
+            <div className="bg-white rounded-2xl p-4 shadow-xl border-2 border-amber-500">
+              <div className="text-4xl mb-2">👑🏆🍔</div>
+              <h1 className="text-2xl font-jua text-amber-500 mb-1">버거 마스터 탄생!</h1>
+              
+              <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 mb-4">
+                <div className="text-4xl mb-1">{winner?.icon}</div>
+                <h2 className="text-lg font-jua text-amber-900">{winner?.name}</h2>
+                <div className="text-xl font-jua text-amber-600">
+                  총 모자 {winner?.score}개 획득!
+                </div>
+              </div>
+
+              {/* Leaderboard */}
+              <div className="space-y-1 mb-4 text-xs">
+                {sortedPlayers.map((p, idx) => (
+                  <div key={p.id} className="flex items-center justify-between bg-slate-50 px-3 py-1 rounded border border-slate-100">
+                    <span className="font-bold text-slate-400">{idx + 1}위 {p.icon} {p.name}</span>
+                    <span className="font-jua text-amber-600">🧑‍🍳 {p.score}개</span>
+                  </div>
+                ))}
+              </div>
+
+              {(!isOnlineMode || isHost) && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={startGame}
+                    className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-jua text-sm py-2 rounded-xl shadow"
+                  >
+                    🔄 한 판 더!
+                  </button>
+                  <button
+                    onClick={resetToSetup}
+                    className="flex-1 bg-slate-200 text-slate-700 font-jua text-sm py-2 rounded-xl"
+                  >
+                    ⚙️ 설정 변경
+                  </button>
+                </div>
+              )}
+              {isOnlineMode && !isHost && (
+                <div className="text-xs text-slate-400 font-bold py-2">
+                  방장이 게임을 다시 설정하거나 새로 시작할 수 있습니다.
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
