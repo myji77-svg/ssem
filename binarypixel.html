@@ -1,0 +1,1030 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이진수 픽셀 암호 해독기</title>
+    <!-- 아기자기하고 시인성이 좋은 교육용 글꼴 및 아이콘 라이브러리 연동 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- 테일윈드 CSS 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        jua: ['Jua', 'sans-serif'],
+                        noto: ['Noto Sans KR', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f0f4f8;
+            user-select: none;
+        }
+
+        /* 아케이드 게임기 스타일 보드 */
+        .arcade-container {
+            border: 6px solid #1e293b;
+            box-shadow: 12px 12px 0px #1e293b;
+        }
+
+        /* 픽셀 셀 마이크로 모션 */
+        .pixel-cell {
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .pixel-cell:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        /* 정답 칠한 칸 마이크로 애니메이션 */
+        .pixel-cell.active {
+            animation: pop 0.2s ease-in-out;
+        }
+
+        /* 틀린 칸 실시간 진동 및 경고 효과 */
+        .pixel-cell.error-cell {
+            border-color: #ef4444 !important;
+            box-shadow: inset 0 0 0 4px #fee2e2, 0 0 12px #ef4444 !important;
+            animation: shake 0.3s ease-in-out infinite alternate;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0.9); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(-1.5px) rotate(-1deg); }
+            100% { transform: translateX(1.5px) rotate(1deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-center items-center p-2">
+
+    <!-- 메인 아케이드 게임기 컨테이너 -->
+    <div class="w-full max-w-5xl bg-white rounded-[24px] p-4 md:p-5 arcade-container flex flex-col justify-between gap-3 relative">
+        
+        <!-- 상단 헤더: 미션 추적기 및 문제 컨트롤러 (컴팩트 스케일링) -->
+        <div class="flex flex-col md:flex-row justify-between items-center border-b-2 border-dashed border-[#cbd5e1] pb-2 gap-2">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl text-indigo-500 animate-bounce"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+                <div>
+                    <h1 class="font-jua text-xl md:text-2xl text-slate-800">이진수 픽셀 암호 해독기</h1>
+                    <p class="text-slate-500 font-bold text-[10px] md:text-xs mt-0.5">도면의 숫자를 직접 클릭하거나 오른쪽 칸에 색을 칠해보세요!</p>
+                </div>
+            </div>
+            
+            <!-- 문제 선택 및 조절 영역 (13개 미션으로 수정) -->
+            <div class="flex items-center gap-2 bg-violet-50 border border-violet-200 px-3 py-1 rounded-xl shadow-inner">
+                <button onclick="prevQuestion()" class="bg-indigo-500 hover:bg-indigo-600 active:translate-y-0.5 text-white font-jua text-xs px-2.5 py-1 rounded-lg transition shadow">이전</button>
+                <span class="font-jua text-base text-indigo-700 min-w-[120px] text-center" id="questionTracker">미션 1 / 13</span>
+                <button onclick="nextQuestion()" class="bg-indigo-500 hover:bg-indigo-600 active:translate-y-0.5 text-white font-jua text-xs px-2.5 py-1 rounded-lg transition shadow">다음</button>
+            </div>
+        </div>
+
+        <!-- 게임판 핵심 레이아웃 영역 (높이 300px~350px 유동 제어로 스크롤 완벽 방지) -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
+            
+            <!-- 좌측: 이진수 암호 판넬 (컬러 미션에서는 완전히 숨김 처리) -->
+            <div class="md:col-span-6 flex flex-col" id="leftPanel">
+                <div class="bg-slate-900 border-2 border-slate-800 text-emerald-400 p-3 rounded-2xl shadow-lg relative overflow-hidden flex flex-col h-full">
+                    <!-- 우주적인 분위기 데코 백그라운드 -->
+                    <div class="absolute -top-10 -right-10 w-20 h-20 bg-emerald-500 opacity-10 rounded-full blur-xl"></div>
+                    
+                    <h3 class="font-jua text-lg text-white mb-2 flex items-center justify-between border-b border-slate-800 pb-1 flex-shrink-0 h-[30px]">
+                        <span id="leftHeaderTitle"><i class="fa-solid fa-terminal mr-1.5"></i> 암호 도면 데이터</span>
+                        <span class="text-emerald-400 text-xs font-bold tracking-wider" id="gridSizeLabel">[ 5 x 5 BITMAP ]</span>
+                    </h3>
+                    
+                    <!-- 줄 단위 코드 보드 (300px 안쪽 크기 자동 연동) -->
+                    <div class="flex-grow flex flex-col justify-between overflow-y-auto pr-1" id="questionDisplay">
+                        <!-- 이진수 행 데이터가 자바스크립트로 주입됩니다 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 우측: 인터랙티브 다차원 격자 색칠 격자판 -->
+            <div class="md:col-span-6 flex flex-col" id="rightPanel">
+                <div class="bg-slate-100 border-2 border-slate-800 p-3 rounded-2xl shadow-inner flex flex-col h-full justify-between">
+                    
+                    <!-- 픽셀 미션 격자 캔버스 상단 타이틀 바 (색상 팔레트를 타이틀과 그리드 정보 사이에 배치) -->
+                    <div class="mb-2 pb-1.5 border-b border-slate-300 flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">
+                        <h3 class="font-jua text-base md:text-lg text-slate-800 flex items-center select-none">
+                            <i class="fa-solid fa-palette text-pink-500 mr-1.5"></i> 픽셀 미션 격자 캔버스
+                        </h3>
+                        
+                        <!-- 🎨 색상 팔레트 영역 (타이틀과 그리드 정보 사이에 가로 정렬 배치) -->
+                        <div id="colorPalette" class="flex gap-2 justify-center items-center flex-wrap">
+                            <!-- Dynamic palette buttons -->
+                        </div>
+
+                        <span class="text-slate-500 text-xs font-bold tracking-wider font-jua select-none" id="gridSizeLabelRight">[ 5 x 5 GRID ]</span>
+                    </div>
+
+                    <!-- 동적 렌더링 격자판 (가로세로 5, 8, 25x8, 28x14 대응) -->
+                    <div class="flex-grow flex flex-col justify-between transition-all duration-300" id="pixelGrid">
+                        <!-- 셀들이 행 단위로 묶여 동적으로 렌더링됩니다 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 하단 제어 액션 패널 (슬림화 및 원본 2버튼 구조 복원) -->
+        <div class="flex gap-3 w-full max-w-md mx-auto justify-between flex-shrink-0 mt-1">
+            <button onclick="clearCanvas()" class="bg-slate-600 hover:bg-slate-700 active:translate-y-0.5 text-white font-jua text-sm px-3 py-2 rounded-xl transition shadow flex-1 flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-eraser"></i> 전체 지우기
+            </button>
+            <button onclick="checkAnswers()" class="bg-emerald-500 hover:bg-emerald-600 active:translate-y-0.5 text-white font-jua text-sm px-4 py-2 rounded-xl transition shadow-lg flex-1 flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-square-check"></i> 채점하기
+            </button>
+        </div>
+
+        <!-- 하단: 실시간 결과 및 메시지 피드백 보드 (높이 슬림화) -->
+        <div class="border-t-2 border-dashed border-[#cbd5e1] pt-1.5 text-center min-h-[50px] flex items-center justify-center">
+            <p id="systemMessage" class="font-jua text-xl md:text-2xl text-slate-500 tracking-wide transition-all duration-300"></p>
+        </div>
+
+    </div>
+
+    <!-- 대성공 오버레이 모달 창 -->
+    <div id="successModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-[32px] border-8 border-emerald-400 p-8 max-w-md w-full text-center shadow-2xl relative overflow-hidden animate-[pop_0.3s_ease-out]">
+            <div class="absolute top-4 left-4 text-3xl text-amber-400"><i class="fa-solid fa-sparkles"></i></div>
+            <div class="absolute bottom-4 right-4 text-3xl text-indigo-400"><i class="fa-solid fa-star"></i></div>
+            
+            <span class="text-7xl text-amber-500 animate-bounce block"><i class="fa-solid fa-trophy"></i></span>
+            <h2 class="font-jua text-4xl text-slate-800 mt-4 mb-2">올 미션 클리어! 🎉</h2>
+            <p class="text-slate-600 font-bold mb-6">마법의 이진수 픽셀 암호를 마스터했습니다!</p>
+            
+            <button onclick="closeSuccessModal()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-jua text-2xl py-4 rounded-2xl transition transform active:scale-95 shadow-lg">
+                다시 처음부터 도전하기 🚀
+            </button>
+        </div>
+    </div>
+
+    <!-- 자바스크립트 브라우저 소리 합성기 엔진 (Web Audio API) -->
+    <script>
+        let audioCtx = null;
+
+        function playTone(freq, type, duration, gainStart = 0.08) {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                
+                gain.gain.setValueAtTime(gainStart, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                console.log("Audio API 실행 제한 상태입니다.");
+            }
+        }
+
+        function playPopSound() {
+            playTone(880, 'sine', 0.1);
+        }
+
+        function playSuccessSound() {
+            playTone(523.25, 'sine', 0.15); // C5
+            setTimeout(() => playTone(659.25, 'sine', 0.15), 150); // E5
+            setTimeout(() => playTone(783.99, 'sine', 0.3), 300); // G5
+        }
+
+        function playFailSound() {
+            playTone(220, 'triangle', 0.25); // A3
+            setTimeout(() => playTone(180, 'triangle', 0.3), 100);
+        }
+    </script>
+
+    <!-- [v2.00 골드 버전] 문제 데이터베이스 및 핵심 게임 제어 스크립트 -->
+    <script>
+        // 단계별 풍성해진 13개 픽셀 문제 데이터베이스 (이모티콘, 헬로키티, 어몽어스 대거 탑재)
+        const questions = [
+            {
+                name: "💖 마이크로비트 HEART [기초 1]",
+                cols: 5,
+                rows: 5,
+                palette: { 0: '#ffffff', 1: '#1e293b' },
+                textPalette: { 0: '#64748b', 1: '#34d399' },
+                code: [
+                    [0, 1, 0, 1, 0],
+                    [1, 1, 1, 1, 1],
+                    [1, 1, 1, 1, 1],
+                    [0, 1, 1, 1, 0],
+                    [0, 0, 1, 0, 0]
+                ]
+            },
+            {
+                name: "😊 마이크로비트 HAPPY [기초 2]",
+                cols: 5,
+                rows: 5,
+                palette: { 0: '#ffffff', 1: '#1e293b' },
+                textPalette: { 0: '#64748b', 1: '#34d399' },
+                code: [
+                    [0, 0, 0, 0, 0],
+                    [0, 1, 0, 1, 0],
+                    [0, 0, 0, 0, 0],
+                    [1, 0, 0, 0, 1],
+                    [0, 1, 1, 1, 0]
+                ]
+            },
+            {
+                name: "😢 마이크로비트 SAD [기초 3]",
+                cols: 5,
+                rows: 5,
+                palette: { 0: '#ffffff', 1: '#1e293b' },
+                textPalette: { 0: '#64748b', 1: '#34d399' },
+                code: [
+                    [0, 0, 0, 0, 0],
+                    [0, 1, 0, 1, 0],
+                    [0, 0, 0, 0, 0],
+                    [0, 1, 1, 1, 0],
+                    [1, 0, 0, 0, 1]
+                ]
+            },
+            {
+                name: "🏃 신나는 쫄라맨 [기초 4]",
+                cols: 5,
+                rows: 5,
+                palette: { 0: '#ffffff', 1: '#1e293b' },
+                textPalette: { 0: '#64748b', 1: '#34d399' },
+                code: [
+                    [0, 0, 1, 0, 0],
+                    [1, 1, 1, 1, 1],
+                    [0, 0, 1, 0, 0],
+                    [0, 1, 0, 1, 0],
+                    [1, 0, 0, 0, 1]
+                ]
+            },
+            {
+                name: "💀 마이크로비트 SKULL [기초 5]",
+                cols: 5,
+                rows: 5,
+                palette: { 0: '#ffffff', 1: '#1e293b' },
+                textPalette: { 0: '#64748b', 1: '#34d399' },
+                code: [
+                    [0, 1, 1, 1, 0],
+                    [1, 0, 1, 0, 1],
+                    [1, 1, 1, 1, 1],
+                    [0, 1, 1, 1, 0],
+                    [0, 1, 1, 1, 0]
+                ]
+            },
+            {
+                name: "☂️ 알록달록 우산 [기초 6]",
+                cols: 5,
+                rows: 5,
+                palette: { 0: '#ffffff', 1: '#1e293b' },
+                textPalette: { 0: '#64748b', 1: '#34d399' },
+                code: [
+                    [0, 1, 1, 1, 0],
+                    [1, 1, 1, 1, 1],
+                    [0, 0, 1, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 1, 1, 0, 0]
+                ]
+            },
+            {
+                name: "🏠 마이크로비트 HOUSE [기초 7]",
+                cols: 5,
+                rows: 5,
+                palette: { 0: '#ffffff', 1: '#1e293b' },
+                textPalette: { 0: '#64748b', 1: '#34d399' },
+                code: [
+                    [0, 0, 1, 0, 0],
+                    [0, 1, 1, 1, 0],
+                    [1, 1, 1, 1, 1],
+                    [1, 0, 1, 0, 1],
+                    [1, 1, 1, 1, 1]
+                ]
+            },
+            {
+                name: "⛵ 푸른 바다 종이배 [심화 1]",
+                cols: 8,
+                rows: 8,
+                palette: { 0: '#ffffff', 1: '#1e293b' },
+                textPalette: { 0: '#64748b', 1: '#34d399' },
+                code: [
+                    [0, 0, 0, 1, 0, 0, 0, 0],
+                    [0, 0, 1, 1, 0, 0, 0, 0],
+                    [0, 1, 1, 1, 0, 0, 0, 0],
+                    [1, 1, 1, 1, 1, 1, 0, 0],
+                    [0, 0, 0, 1, 0, 0, 0, 0],
+                    [0, 1, 1, 1, 1, 1, 1, 0],
+                    [0, 0, 1, 1, 1, 1, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0]
+                ]
+            },
+            {
+                name: "☂️ 알록달록 우산 [심화 2]",
+                cols: 8,
+                rows: 8,
+                palette: { 0: '#ffffff', 1: '#1e293b' },
+                textPalette: { 0: '#64748b', 1: '#34d399' },
+                code: [
+                    [0, 0, 0, 1, 1, 0, 0, 0],
+                    [0, 1, 1, 1, 1, 1, 1, 0],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [0, 0, 0, 1, 1, 0, 0, 0],
+                    [0, 0, 0, 1, 1, 0, 0, 0],
+                    [0, 0, 0, 1, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 1, 1, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0]
+                ]
+            },
+            {
+                name: "✈️ 하늘 나는 비행기 [심화 3]",
+                cols: 8,
+                rows: 8,
+                palette: { 0: '#ffffff', 1: '#1e293b' },
+                textPalette: { 0: '#64748b', 1: '#34d399' },
+                code: [
+                    [0, 0, 0, 1, 1, 0, 0, 0],
+                    [0, 0, 0, 1, 1, 0, 0, 0],
+                    [0, 1, 1, 1, 1, 1, 1, 0],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [0, 0, 0, 1, 1, 0, 0, 0],
+                    [0, 0, 0, 1, 1, 0, 0, 0],
+                    [0, 0, 1, 1, 1, 1, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0]
+                ]
+            },
+            {
+                name: "┌( ^o^ )┘ 신나는 댄스 [컬러 특수 11]",
+                cols: 25,
+                rows: 8,
+                palette: { 
+                    0: '#ffffff', // 하양 (배경)
+                    1: '#1e293b'  // 검정 (이모티콘 적용)
+                },
+                textPalette: { 
+                    0: '#475569', 1: '#1e293b' 
+                },
+                code: [
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                    [1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                    [1,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,1],
+                    [1,0,0,0,1,0,0,1,0,1,0,0,1,0,0,1,0,1,0,0,1,0,0,0,1],
+                    [1,0,0,0,1,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1,0,0,0,1],
+                    [1,0,0,0,1,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1,0,0,0,1],
+                    [1,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,1],
+                    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1]
+                ]
+            },
+            {
+                name: "🐱 산리오 헬로키티 [컬러 특수 12]",
+                cols: 28,
+                rows: 14,
+                palette: { 
+                    0: '#ffffff', // 하양 (배경 및 얼굴 공통 적용)
+                    1: '#1e293b', // 검정 (윤곽선)
+                    2: '#f43f5e', // 빨강 (리본)
+                    3: '#fbbf24', // 노랑 (코)
+                    4: '#fda4af'  // 분홍 (볼 터치)
+                },
+                textPalette: { 
+                    0: '#475569', 1: '#f1f5f9', 2: '#f43f5e', 3: '#fbbf24', 4: '#fda4af' 
+                },
+                code: [
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                    [0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0],
+                    [0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0],
+                    [0,0,1,0,0,0,0,1,2,2,0,0,0,0,0,0,0,0,2,2,1,0,0,0,0,1,0,0],
+                    [0,1,0,0,0,0,0,1,1,1,2,0,0,0,0,0,0,2,1,1,1,0,0,0,0,0,1,0],
+                    [1,0,0,0,0,0,0,0,1,2,2,2,0,0,0,0,2,2,2,1,0,0,0,0,0,0,0,1],
+                    [1,0,0,1,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,0,0,1],
+                    [1,0,4,1,1,0,0,0,0,0,0,0,0,3,3,0,0,0,0,0,0,0,0,1,1,4,0,1],
+                    [1,0,4,0,0,0,0,0,0,0,0,0,0,3,3,0,0,0,0,0,0,0,0,0,0,4,0,1],
+                    [1,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1],
+                    [0,1,0,0,0,0,0,0,0,0,1,1,1,0,0,1,1,1,0,0,0,0,0,0,0,0,1,0],
+                    [0,0,1,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,1,0,0],
+                    [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+                ]
+            },
+            {
+                name: "🚀 우주선 어몽어스 [컬러 특수 13]",
+                cols: 28,
+                rows: 14,
+                palette: { 
+                    0: '#ffffff', // 하양 (배경 및 광택 통합)
+                    1: '#1e293b', // 검정 (윤곽선)
+                    2: '#ef4444', // 빨강 (몸체 1)
+                    3: '#38bdf8', // 하늘 (유리창)
+                    4: '#991b1b', // 어두운 빨강 (그림자 1)
+                    5: '#f97316', // 주황 (몸체 2)
+                    6: '#c2410c'  // 어두운 주황 (그림자 2)
+                },
+                textPalette: { 
+                    0: '#475569', 1: '#f1f5f9', 2: '#ef4444', 3: '#38bdf8', 4: '#991b1b', 5: '#f97316', 6: '#c2410c' 
+                },
+                code: [
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                    [0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0],
+                    [0,0,1,2,2,2,2,2,1,0,0,0,0,0,0,1,5,5,5,5,5,1,0,0,0,0,0,0],
+                    [0,1,1,1,2,2,2,2,2,1,0,0,0,0,1,1,1,5,5,5,5,5,1,0,0,0,0,0],
+                    [1,2,2,1,0,0,3,3,3,1,0,0,0,1,5,5,1,0,0,3,3,3,1,0,0,0,0,0],
+                    [1,2,2,1,3,3,3,3,3,1,0,0,0,1,5,5,1,3,3,3,3,3,1,0,0,0,0,0],
+                    [1,2,2,1,1,1,1,1,1,1,0,0,0,1,5,5,1,1,1,1,1,1,1,1,0,0,0,0],
+                    [1,2,2,2,2,2,2,2,2,1,0,0,0,1,5,5,5,5,5,5,5,5,1,0,0,0,0,0],
+                    [0,1,2,2,2,2,2,2,1,0,0,0,0,0,1,5,5,5,5,5,5,1,0,0,0,0,0,0],
+                    [0,1,4,4,4,4,4,4,1,0,0,0,0,0,1,6,6,6,6,6,6,1,0,0,0,0,0,0],
+                    [0,1,4,4,4,4,4,4,1,0,0,0,0,0,1,6,6,6,6,6,6,1,0,0,0,0,0,0],
+                    [0,0,1,4,4,0,1,4,4,1,0,0,0,0,0,1,6,6,0,1,6,6,1,0,0,0,0,0],
+                    [0,0,1,4,4,0,1,4,4,1,0,0,0,0,0,1,6,6,0,1,6,6,1,0,0,0,0,0],
+                    [0,0,0,1,1,0,0,1,1,0,0,0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,0]
+                ]
+            }
+        ];
+
+        // 게임 전역 제어 변수
+        let currentQuestionIdx = 0;
+        let gridState = [];
+        let isLocked = false;
+        let isShowingErrors = false; // [v2.00 골드 패치] 현재 오답 결과가 화면에 노출 중인지 여부 판정 플래그
+        let selectedColorValue = 1; // 현재 쥐고 있는 색깔 값
+        let activePaddingClass = "py-1 px-3"; // 동적 패딩 추적용 변수
+
+        // 브라우저 로딩 완료 시 구동 시작
+        window.onload = function() {
+            loadQuestion(0);
+        };
+
+        /**
+         * 수평 높이가 완벽히 정렬된 코딩 보드와 격자 캔버스를 동적 렌더링합니다. (세로 300px 고정 설계)
+         */
+        function loadQuestion(index) {
+            currentQuestionIdx = index;
+            isLocked = false; // 격자 편집 잠금 해제
+            isShowingErrors = false; // 오답 플래그 리셋
+            selectedColorValue = 1; // 새로운 미션 시작 시 기본 1번(검정 윤곽선) 분필 세팅
+            
+            const q = questions[index];
+            const cols = q.cols || q.size;
+            const rows = q.rows || q.size;
+
+            // 11번, 12번, 13번 미션(index 10, 11, 12)이 컬러 특별 미션인지 여부 확인
+            const isColorMission = (index >= 10);
+
+            // 격자 정보 2차원 배열 초기화
+            gridState = Array(rows).fill().map(() => Array(cols).fill(0));
+
+            // 문제 추적기 라벨 및 헤더 다이내믹 갱신
+            document.getElementById('questionTracker').innerText = `미션 ${index + 1} / ${questions.length}`;
+            document.getElementById('gridSizeLabel').innerText = isColorMission ? `[ COLOR MATCH ]` : `[ ${cols} x ${rows} BITMAP ]`;
+            document.getElementById('gridSizeLabelRight').innerText = `[ ${cols} x ${rows} GRID ]`;
+
+            // 깨비님 피드백 반영: 컬러 미션에서는 비밀색상 가이드 패널(leftPanel)을 숨기고 rightPanel을 full-width화!
+            const leftPanel = document.getElementById('leftPanel');
+            const rightPanel = document.getElementById('rightPanel');
+            if (isColorMission) {
+                leftPanel.classList.add('hidden');
+                rightPanel.className = "md:col-span-12 flex flex-col";
+            } else {
+                leftPanel.classList.remove('hidden');
+                leftPanel.className = "md:col-span-6 flex flex-col";
+                rightPanel.className = "md:col-span-6 flex flex-col";
+            }
+
+            // 타이틀 헤더도 2-color / 컬러 미션에 따라 완벽 전환
+            const leftHeaderTitle = document.getElementById('leftHeaderTitle');
+            if (leftHeaderTitle) {
+                if (isColorMission) {
+                    leftHeaderTitle.innerHTML = `<i class="fa-solid fa-palette mr-1.5 text-pink-400"></i> 비밀 색상 가이드`;
+                } else {
+                    leftHeaderTitle.innerHTML = `<i class="fa-solid fa-terminal mr-1.5 text-emerald-400"></i> 암호 도면 데이터`;
+                }
+            }
+
+            // 크기 및 해상도에 따른 고도화된 수평 조율 CSS 설정
+            let gapPx = 10;
+            let maxWClass = "max-w-[300px]";
+            let borderClass = "border-2 rounded-xl";
+            let fontSizeClass = "text-lg md:text-xl";
+            activePaddingClass = "py-1 px-3";
+            let trackingClass = "gap-2.5";
+            let gridHeight = '300px';
+
+            if (cols === 8) {
+                maxWClass = "max-w-[300px]";
+                gapPx = 4;
+                borderClass = "border rounded-md";
+                fontSizeClass = "text-sm md:text-md";
+                activePaddingClass = "py-0.5 px-2";
+                trackingClass = "gap-1.5";
+            } else if (cols === 25) {
+                // 초직관적인 25x8 신규 댄스 전용 그리드 뷰포트 스케일링 설정
+                maxWClass = "max-w-[750px]";
+                gridHeight = "240px"; // 3:1 화면비에 맞춰 정비례 가로세로 정사각형 유지
+                gapPx = 3;
+                borderClass = "border rounded-md";
+                fontSizeClass = "text-xs md:text-sm";
+                activePaddingClass = "py-1 px-2";
+                trackingClass = "gap-1";
+            } else if (cols === 28) {
+                // 28x14 가로 대형 그리드를 한층 더 큼직하고 시원하게 850px 너비로 스케일업!
+                maxWClass = "max-w-[850px]";
+                gridHeight = "425px"; // 2:1 와이드 화면비율에 맞추어 높이도 425px로 정비례 확장하여 완벽한 정사각형 유지
+                gapPx = 2;
+                borderClass = "border rounded-sm";
+                fontSizeClass = "text-[11px]";
+                activePaddingClass = "py-0.5 px-1";
+                trackingClass = "gap-1";
+            }
+
+            // 1. 도면 패널(좌측) 및 격자 패널(우측) 부모 컨테이너 크기 및 높이 동일 정렬
+            const display = document.getElementById('questionDisplay');
+            display.innerHTML = '';
+            display.style.display = 'grid';
+            display.style.gridTemplateRows = isColorMission ? `1fr` : `repeat(${rows}, minmax(0, 1fr))`;
+            display.style.gap = `${gapPx}px`;
+            display.style.height = '300px';
+
+            const gridContainer = document.getElementById('pixelGrid');
+            gridContainer.innerHTML = '';
+            gridContainer.className = `w-full ${maxWClass} mx-auto transition-all duration-300`;
+            gridContainer.style.display = 'grid';
+            gridContainer.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
+            gridContainer.style.gap = `${gapPx}px`;
+            gridContainer.style.height = gridHeight;
+
+            // 2. 루프를 돌며 좌우측 행(Row) 높이를 완벽하게 생성
+            for (let r = 0; r < rows; r++) {
+                // (1) 일반 미션일 때만 좌측 도면 코드 행 렌더링
+                if (!isColorMission) {
+                    const textRowDiv = document.createElement('div');
+                    // [v2.00 골드 패치] justify-between에서 justify-start gap-4 형태로 간격 재구조화
+                    textRowDiv.className = `flex justify-start items-center bg-slate-950 ${activePaddingClass} rounded-xl border border-slate-800 transition duration-300 w-full gap-2 md:gap-4`;
+                    textRowDiv.id = `rowDisplay-${r}`;
+                    
+                    // [v2.00 골드 패치] 줄 번호 가독성(숫자 분리, 굵직한 세로 구분선 및 텍스트 '줄' 표기 세부 튜닝)
+                    let rowHtml = `
+                        <div class="flex items-center gap-2 select-none border-r-2 border-slate-800 pr-3 md:pr-4 mr-1 md:mr-2 min-w-[55px] md:min-w-[75px] flex-shrink-0">
+                            <i class="fa-solid fa-lightbulb text-slate-600 text-xs md:text-sm" id="bulb-${r}"></i>
+                            <span class="text-slate-400 font-jua ${fontSizeClass}">${r + 1}줄</span>
+                        </div>
+                        <div class="flex ${trackingClass} font-mono pl-1 md:pl-2">
+                    `;
+                    
+                    for (let c = 0; c < cols; c++) {
+                        const val = q.code[r][c];
+                        const valColor = '#34d399';
+                        rowHtml += `
+                            <span onclick="toggleCellFromCode(${r}, ${c})" 
+                                  class="cursor-pointer hover:bg-slate-800 px-1 rounded transition font-bold font-mono ${fontSizeClass} select-none" 
+                                  style="color: ${valColor}"
+                                  id="codeDigit-${r}-${c}">${val}</span>
+                        `;
+                    }
+                    
+                    rowHtml += `</div>`;
+                    textRowDiv.innerHTML = rowHtml;
+                    display.appendChild(textRowDiv);
+                }
+
+                // (2) 우측 격자 캔버스 픽셀 행 렌더링
+                const pixelRowDiv = document.createElement('div');
+                pixelRowDiv.className = `flex w-full justify-center`;
+                pixelRowDiv.style.display = 'grid';
+                pixelRowDiv.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+                pixelRowDiv.style.gap = `${gapPx}px`;
+                pixelRowDiv.id = `gridRow-${r}`;
+
+                for (let c = 0; c < cols; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = `pixel-cell bg-white border-slate-300 shadow-sm ${borderClass} aspect-square w-full relative flex items-center justify-center`;
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    
+                    // 고해상도 가이드 숫자 기입 (배경 및 모든 수치가 완벽 연동됨)
+                    if (isColorMission) {
+                        const targetVal = q.code[r][c];
+                        const numSpan = document.createElement('span');
+                        numSpan.className = `cell-number absolute font-black pointer-events-none select-none transition-all duration-150`;
+                        numSpan.style.fontSize = cols === 28 ? '10px' : '14px';
+                        numSpan.style.color = '#94a3b8'; // 최초 미채색 상태는 가이드용 부드러운 회색
+                        numSpan.id = `cellNum-${r}-${c}`;
+                        numSpan.innerText = targetVal;
+                        cell.appendChild(numSpan);
+                    }
+
+                    cell.onclick = () => toggleCell(r, c, cell);
+                    pixelRowDiv.appendChild(cell);
+                }
+                gridContainer.appendChild(pixelRowDiv);
+            }
+
+            // 색깔 팔레트 렌더러 가동
+            renderPalette();
+
+            // 하단 피드백 안내판 가독성 정돈 (기존 "암호를 보고..." 가이드 텍스트를 제거하여 비워둡니다)
+            document.getElementById('systemMessage').innerHTML = ``;
+            document.getElementById('systemMessage').className = "font-jua text-xl text-slate-500";
+        }
+
+        /**
+         * 가용 컬러 팔레트 선택 바 렌더링
+         */
+        function renderPalette() {
+            const q = questions[currentQuestionIdx];
+            const palette = q.palette || { 0: '#ffffff', 1: '#1e293b' };
+            const paletteContainer = document.getElementById('colorPalette');
+            paletteContainer.innerHTML = '';
+            
+            Object.keys(palette).forEach(key => {
+                const colorValue = Number(key);
+                const colorHex = palette[key];
+                
+                const btn = document.createElement('button');
+                btn.className = `w-7 h-7 rounded-full border-2 transition-all duration-150 transform hover:scale-110 flex items-center justify-center shadow-md relative`;
+                btn.style.backgroundColor = colorHex;
+                
+                // 선택된 색깔 강력하게 강조 표출
+                if (selectedColorValue === colorValue) {
+                    btn.className += ' border-indigo-600 scale-110 ring-2 ring-indigo-300 z-10';
+                } else {
+                    btn.className += ' border-slate-300';
+                }
+                
+                btn.onclick = () => {
+                    selectedColorValue = colorValue;
+                    playPopSound();
+                    renderPalette();
+                };
+
+                // 진한 배경색은 글씨를 흰색으로, 연한 배경색은 검정색으로 가독성 매칭
+                const textColor = colorValue === 0 ? '#0f172a' : getContrastColor(colorValue, colorHex);
+                
+                if (colorValue === 0) {
+                    if (currentQuestionIdx >= 10) {
+                        // 미션 11, 12, 13에서는 지우개 도구 팔레트에 'X' 대신 '0'을 출력
+                        btn.innerHTML = `<span class="text-xs font-black shadow-sm select-none" style="color: ${textColor}">0</span>`;
+                    } else {
+                        btn.innerHTML = `<span class="text-[10px] shadow-sm select-none">❌</span>`;
+                    }
+                } else {
+                    btn.innerHTML = `<span class="text-xs font-black shadow-sm select-none" style="color: ${textColor}">${colorValue}</span>`;
+                }
+                
+                paletteContainer.appendChild(btn);
+            });
+        }
+
+        /**
+         * 좌측 이진수 코드 내의 숫자 클릭 시 우측 격자판을 연동하여 토글
+         */
+        function toggleCellFromCode(r, c) {
+            if (isLocked) return;
+            const rowEl = document.getElementById(`gridRow-${r}`);
+            if (rowEl) {
+                const cell = rowEl.children[c];
+                if (cell) {
+                    toggleCell(r, c, cell);
+                }
+            }
+        }
+
+        /**
+         * 개별 픽셀 클릭 시 지정한 색깔로 채우거나 지우기(0) 처리
+         */
+        function toggleCell(r, c, cell) {
+            if (isLocked) return;
+
+            // 이미 동일한 색깔이 칠해져 있다면 탭했을 때 지워지도록(0) 연동
+            if (gridState[r][c] === selectedColorValue) {
+                gridState[r][c] = 0;
+            } else {
+                gridState[r][c] = selectedColorValue;
+            }
+            
+            updateCellStyle(r, c, cell);
+            cell.classList.remove('error-cell');
+            
+            // 사용자가 칸을 다시 누르거나 수정을 시도하면 오답 체크 상태를 자동으로 꺼서 직관적으로 조작하게 함
+            isShowingErrors = false;
+        }
+
+        /**
+         * 가이드 숫자가 상시 표출되도록 조율하고, 지능형 대비 가독성 매칭
+         */
+        function updateCellStyle(r, c, cell) {
+            const q = questions[currentQuestionIdx];
+            const palette = q.palette || { 0: '#ffffff', 1: '#1e293b' };
+            const val = gridState[r][c];
+            const colorHex = palette[val] || '#ffffff';
+            
+            cell.style.backgroundColor = colorHex;
+            
+            // 칠해진 후에도 가이드 숫자를 가리지 않고 계속 보여주기 위해 opacity를 무조건 1로 유지!
+            const numSpan = cell.querySelector('.cell-number');
+            if (numSpan) {
+                numSpan.style.opacity = "1";
+                
+                // 지능형 대비 판정
+                const textColor = getContrastColor(val, colorHex);
+                numSpan.style.color = textColor;
+            }
+            
+            if (val > 0) {
+                cell.classList.add('active');
+                if (colorHex === '#1e293b' || colorHex === '#0f172a') {
+                    cell.style.borderColor = '#0f172a';
+                } else {
+                    cell.style.borderColor = 'rgba(0,0,0,0.15)';
+                }
+            } else {
+                cell.classList.remove('active');
+                cell.style.borderColor = '#cbd5e1';
+            }
+        }
+
+        /**
+         * 지능형 글꼴 대비 판정 엔진 (Luminance 공식 기반)
+         */
+        function getContrastColor(val, colorHex) {
+            if (val === 0) return '#94a3b8'; // 미채색 가이드는 세련된 연회색
+            
+            // 16진수 색상 코드를 RGB로 분해하여 체감 밝기(brightness) 계산
+            let hex = colorHex.replace('#', '');
+            if (hex.length === 3) {
+                hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+            }
+            const r = parseInt(hex.substr(0, 2), 16);
+            const g = parseInt(hex.substr(2, 2), 16);
+            const b = parseInt(hex.substr(4, 2), 16);
+            
+            // HSP 색상 모델 공식 사용
+            const brightness = Math.sqrt(
+                0.299 * (r * r) +
+                0.587 * (g * g) +
+                0.114 * (b * b)
+            );
+            
+            // 임계값 130 기준으로 어두우면 흰색 글자, 밝으면 검정색 글자 반환
+            return brightness < 130 ? '#ffffff' : '#0f172a';
+        }
+
+        /**
+         * [v2.00 골드 패치] 현재 화면에 표시된 모든 오답 표시 비주얼을 깔끔하게 지워주는 리셋 함수 (justify-start 레이아웃 고정)
+         */
+        function clearErrorMarkings() {
+            isShowingErrors = false;
+            const q = questions[currentQuestionIdx];
+            const cols = q.cols || q.size;
+            const rows = q.rows || q.size;
+            const isColorMission = (currentQuestionIdx >= 10);
+
+            // 1. 모든 픽셀 셀에서 오류 스타일(.error-cell) 해제
+            for (let r = 0; r < rows; r++) {
+                const rowEl = document.getElementById(`gridRow-${r}`);
+                if (rowEl) {
+                    for (let c = 0; c < cols; c++) {
+                        const cell = rowEl.children[c];
+                        if (cell) {
+                            cell.classList.remove('error-cell');
+                        }
+                    }
+                }
+            }
+
+            // 2. 좌측 데이터 도면 보드가 존재할 경우, 오답 라인 경고 비주얼 원상 복구
+            if (!isColorMission) {
+                for (let r = 0; r < rows; r++) {
+                    const rDiv = document.getElementById(`rowDisplay-${r}`);
+                    const bulb = document.getElementById(`bulb-${r}`);
+                    if (rDiv) {
+                        rDiv.className = `flex justify-start items-center bg-slate-950 ${activePaddingClass} rounded-xl border border-slate-800 transition duration-300 w-full gap-2 md:gap-4`;
+                        bulb.className = 'fa-solid fa-lightbulb text-slate-600 text-sm';
+                        for (let c = 0; c < cols; c++) {
+                            const textDigit = document.getElementById('codeDigit-' + r + '-' + c);
+                            if (textDigit) {
+                                textDigit.style.color = '#34d399'; // 정상 수치 텍스트색(에메랄드)으로 복원
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. 하단 알림 메시지 패널 초기화
+            const msg = document.getElementById('systemMessage');
+            if (msg) {
+                msg.innerHTML = ``;
+            }
+        }
+
+        /**
+         * 픽셀 캔버스의 채우기를 모두 비워 초기 상태로 리셋
+         */
+        function clearCanvas() {
+            if (isLocked) return;
+            isShowingErrors = false;
+
+            const q = questions[currentQuestionIdx];
+            const cols = q.cols || q.size;
+            const rows = q.rows || q.size;
+            
+            for (let r = 0; r < rows; r++) {
+                const rowEl = document.getElementById(`gridRow-${r}`);
+                for (let c = 0; c < cols; c++) {
+                    gridState[r][c] = 0;
+                    if (rowEl) {
+                        const cell = rowEl.children[c];
+                        if (cell) {
+                            cell.classList.remove('active', 'error-cell');
+                            cell.style.backgroundColor = '#ffffff';
+                            cell.style.borderColor = '#cbd5e1';
+                            
+                            // 격자 가이드 번호 색깔도 초기화
+                            const numSpan = cell.querySelector('.cell-number');
+                            if (numSpan) {
+                                numSpan.style.opacity = "1";
+                                numSpan.style.color = '#94a3b8';
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 일반 이진수 도면일 때만 줄 단위 경고등 원상 복귀
+            if (currentQuestionIdx < 10) {
+                for (let r = 0; r < rows; r++) {
+                    const rDiv = document.getElementById(`rowDisplay-${r}`);
+                    const bulb = document.getElementById(`bulb-${r}`);
+                    if (rDiv) {
+                        rDiv.className = `flex justify-start items-center bg-slate-950 ${activePaddingClass} rounded-xl border border-slate-800 transition duration-300 w-full gap-2 md:gap-4`;
+                        bulb.className = 'fa-solid fa-lightbulb text-slate-600 text-sm';
+                        for (let c = 0; c < cols; c++) {
+                            const textDigit = document.getElementById('codeDigit-' + r + '-' + c);
+                            if (textDigit) {
+                                textDigit.style.color = '#34d399'; // 에메랄드로 복원
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * 채점 시스템 구동 (에러 표시 상태일 경우 다시 클릭하면 오답 지우기 기능 토글 탑재)
+         */
+        function checkAnswers() {
+            if (isLocked) return;
+
+            // 만약 오답 결과가 현재 캔버스에 표시된 상태라면, 버튼 클릭 시 토글하여 오답 비주얼 제거!
+            if (isShowingErrors) {
+                clearErrorMarkings();
+                playPopSound(); // 피드백 사운드 출력
+                return;
+            }
+
+            const q = questions[currentQuestionIdx];
+            const cols = q.cols || q.size;
+            const rows = q.rows || q.size;
+            const isColorMission = (currentQuestionIdx >= 10);
+            
+            let totalErrors = 0;
+            let rowErrors = Array(rows).fill(0); // 행별 오류 추적용 카운터
+
+            // 1. 전체 셀 검사 및 오류 탐지
+            for (let r = 0; r < rows; r++) {
+                const rowEl = document.getElementById(`gridRow-${r}`);
+                for (let c = 0; c < cols; c++) {
+                    if (rowEl) {
+                        const cell = rowEl.children[c];
+                        if (cell) {
+                            // 정수 비교 연산으로 완벽하게 다중 컬러 암호 채점 지원!
+                            if (q.code[r][c] !== gridState[r][c]) {
+                                totalErrors++;
+                                rowErrors[r]++;
+                                cell.classList.add('error-cell');
+                            } else {
+                                cell.classList.remove('error-cell');
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. 일반 미션(1~10번) 일 때만 좌측 암호 데이터 보드에 줄 단위 실시간 비주얼 가이드 경고 표출
+            if (!isColorMission) {
+                for (let r = 0; r < rows; r++) {
+                    const rDiv = document.getElementById('rowDisplay-' + r);
+                    const bulb = document.getElementById('bulb-' + r);
+
+                    if (rowErrors[r] > 0) {
+                        rDiv.className = `flex justify-start items-center bg-red-950/40 ${activePaddingClass} rounded-xl border-2 border-red-500 transition duration-300 w-full gap-2 md:gap-4`;
+                        bulb.className = 'fa-solid fa-triangle-exclamation text-red-500 text-sm animate-pulse';
+                        
+                        for (let c = 0; c < cols; c++) {
+                            const textDigit = document.getElementById('codeDigit-' + r + '-' + c);
+                            if (textDigit && q.code[r][c] !== gridState[r][c]) {
+                                textDigit.style.color = '#ef4444'; // 틀린 숫자는 경고성 빨간색으로 변경
+                            }
+                        }
+                    } else {
+                        rDiv.className = `flex justify-start items-center bg-slate-950 ${activePaddingClass} rounded-xl border border-slate-800 transition duration-300 w-full gap-2 md:gap-4`;
+                        bulb.className = 'fa-solid fa-lightbulb text-slate-600 text-sm';
+                        
+                        for (let c = 0; c < cols; c++) {
+                            const textDigit = document.getElementById('codeDigit-' + r + '-' + c);
+                            if (textDigit) {
+                                textDigit.style.color = '#34d399'; // 정답 라인은 에메랄드로 복구
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. 채점 결과 메시지 전송 및 자동 다음단계 트랜지션 구동
+            const msg = document.getElementById('systemMessage');
+            if (totalErrors === 0) {
+                isLocked = true; // 대기 중 클릭 금지 설정
+                isShowingErrors = false; // 성공 시에는 오류 토글 상태가 비활성화됨
+                playSuccessSound();
+                
+                msg.innerHTML = `🎉 대단해요! 완벽하게 해독 성공! <span class="text-indigo-600 animate-pulse">1.5초 뒤 다음 미션으로 출발! 🚀</span>`;
+                msg.className = "font-jua text-xl md:text-2xl text-emerald-500 tracking-wide";
+                
+                // 1.5초 지연 후 기분 좋게 자동 다음 미션 갱신
+                setTimeout(() => {
+                    let nextIdx = currentQuestionIdx + 1;
+                    if (nextIdx >= questions.length) {
+                        // 올클리어 시 모달 표출
+                        document.getElementById('successModal').classList.remove('hidden');
+                        isLocked = false;
+                        return;
+                    }
+                    loadQuestion(nextIdx);
+                }, 1500);
+
+            } else {
+                playFailSound();
+                isShowingErrors = true; // 오류 표시 플래그 활성화 (한 번 더 누르면 리셋될 상태)
+                if (isColorMission) {
+                    msg.innerHTML = `⚠️ 앗! 틀린 부분이 <span class="text-rose-500 font-extrabold font-mono">${totalErrors}군데</span> 존재합니다. 가이드 숫자와 캔버스를 다시 확인해 보세요!`;
+                } else {
+                    msg.innerHTML = `⚠️ 앗! 틀린 부분이 <span class="text-rose-500 font-extrabold font-mono">${totalErrors}군데</span> 존재합니다. 빨간 행과 격자를 다시 확인해 보세요!`;
+                }
+                msg.className = "font-jua text-xl md:text-2xl text-rose-500 tracking-wide";
+            }
+        }
+
+        /**
+         * 이전 문항으로 전환
+         */
+        function prevQuestion() {
+            let nextIdx = currentQuestionIdx - 1;
+            if (nextIdx < 0) {
+                nextIdx = questions.length - 1;
+            }
+            loadQuestion(nextIdx);
+        }
+
+        /**
+         * 다음 문항으로 전환
+         */
+        function nextQuestion() {
+            let nextIdx = currentQuestionIdx + 1;
+            if (nextIdx >= questions.length) {
+                nextIdx = 0;
+            }
+            loadQuestion(nextIdx);
+        }
+
+        /**
+         * 올 클리어 성공 모달 닫기 및 1단계로 복귀
+         */
+        function closeSuccessModal() {
+            document.getElementById('successModal').classList.add('hidden');
+            loadQuestion(0);
+        }
+    </script>
+</body>
+</html>
