@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주사위 달리기 게임 현황판</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Jua', sans-serif;
+            background-color: #f0fdf4; /* 연한 녹색 배경 */
+            margin: 0;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        /* 게임 트랙 스타일 */
+        .track-container {
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            position: relative;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        /* 각 레인(줄) 레이아웃 */
+        .lane-wrapper {
+            display: flex;
+            height: 80px;
+            border-bottom: 2px dashed #d1d5db;
+        }
+        .lane-wrapper:last-child {
+            border-bottom: none;
+        }
+
+        /* 출발 구역 */
+        .start-zone {
+            width: 120px;
+            background-color: #e0f2fe;
+            border-right: 4px solid #3b82f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #1e3a8a;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* 달리기 구역 (칸이 그려질 곳) */
+        .track-zone {
+            flex-grow: 1;
+            display: flex;
+            position: relative;
+            background-color: #f8fafc;
+        }
+
+        /* 결승 구역 */
+        .finish-zone {
+            width: 80px;
+            background: repeating-linear-gradient(45deg, #000, #000 10px, #fff 10px, #fff 20px);
+            border-left: 4px solid #ef4444;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 칸(스텝) 스타일 */
+        .step-cell {
+            flex: 1;
+            border-right: 1px dashed #cbd5e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+        .step-cell:nth-child(even) {
+            background-color: #f1f5f9;
+        }
+
+        /* 캐릭터 기본 스타일 */
+        .racer {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            left: -80px; /* 초기 위치 (출발선 안쪽) */
+            transition: left 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); /* 통통 튀는 애니메이션 */
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+        }
+
+        .racer-icon {
+            font-size: 2.5rem;
+            filter: drop-shadow(2px 4px 4px rgba(0,0,0,0.2));
+        }
+
+        .racer-name {
+            font-size: 0.8rem;
+            background-color: white;
+            padding: 1px 6px;
+            border-radius: 12px;
+            margin-top: -5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid #ddd;
+            white-space: nowrap;
+        }
+
+        /* 팡파르 효과 */
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            z-index: 1000;
+            opacity: 0;
+        }
+
+        @keyframes fall {
+            0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+        
+        /* 모달 공통 스타일 */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-box {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            animation: bounceIn 0.5s;
+            max-width: 90%;
+            width: 500px;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            60% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); }
+        }
+
+        /* 시작화면 스타일 */
+        #startScreen {
+            display: flex; /* 초기에는 무조건 보임 */
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6 flex flex-col h-screen">
+
+    <div class="text-center mb-4 flex-shrink-0">
+        <h1 class="text-3xl md:text-4xl font-bold text-green-700 mb-1 border-4 border-green-400 bg-white inline-block px-6 py-2 rounded-full shadow-md">🏁 주사위 달리기 대결 🏁</h1>
+        <p class="text-lg text-gray-600 mt-2">주사위를 굴리고 다 함께 이동해봐요!</p>
+    </div>
+
+    <!-- 게임 보드 영역 -->
+    <div class="max-w-7xl mx-auto w-full flex-grow flex flex-col">
+        <div class="track-container border-4 border-green-500 flex-grow flex flex-col justify-between" id="track-board">
+            <!-- 레인들은 JS로 자동 생성됩니다 (칸을 그리기 위해) -->
+        </div>
+
+        <!-- 컨트롤 패널 (동시 입력) -->
+        <div class="bg-white border-4 border-indigo-200 rounded-2xl shadow-lg p-4 mt-4 flex-shrink-0">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                
+                <!-- 5명의 주사위 입력창이 한 줄에 나열됨 -->
+                <div class="flex-grow grid grid-cols-5 gap-2 md:gap-4 w-full" id="dice-inputs-container">
+                    <!-- JS에서 동적 생성됨 -->
+                </div>
+
+                <!-- 동시에 이동 버튼 -->
+                <div class="w-full md:w-auto">
+                    <button onclick="moveAllRacers()" class="w-full h-full min-h-[80px] bg-indigo-500 hover:bg-indigo-600 text-white text-2xl font-bold py-4 px-8 rounded-xl shadow-lg active:scale-95 transition-transform flex flex-col items-center justify-center border-b-4 border-indigo-700">
+                        <span>🏃 모두 동시에</span>
+                        <span>이동하기!</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 하단 메뉴 -->
+        <div class="text-right mt-4 flex-shrink-0">
+            <button onclick="confirmReset()" class="bg-red-100 hover:bg-red-200 text-red-600 font-bold py-2 px-6 rounded-lg transition-colors border border-red-300">
+                🔄 처음부터 다시하기 (이름 설정)
+            </button>
+        </div>
+    </div>
+
+    <!-- 1. 시작 및 이름 입력 모달 -->
+    <div id="startScreen" class="overlay">
+        <div class="modal-box border-4 border-blue-400">
+            <h2 class="text-3xl font-bold mb-6 text-blue-700">참가자 이름 입력</h2>
+            <p class="text-gray-600 mb-6">달리기에 참여할 5명의 이름을 적어주세요.</p>
+            
+            <div class="grid grid-cols-1 gap-3 mb-8">
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">🐶</span>
+                    <input type="text" id="setup-name-1" placeholder="학생 1" value="강아지" class="flex-grow text-xl border-2 border-gray-300 rounded p-2 focus:border-blue-500 focus:outline-none">
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">🐱</span>
+                    <input type="text" id="setup-name-2" placeholder="학생 2" value="고양이" class="flex-grow text-xl border-2 border-gray-300 rounded p-2 focus:border-blue-500 focus:outline-none">
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">🐰</span>
+                    <input type="text" id="setup-name-3" placeholder="학생 3" value="토끼" class="flex-grow text-xl border-2 border-gray-300 rounded p-2 focus:border-blue-500 focus:outline-none">
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">🐻</span>
+                    <input type="text" id="setup-name-4" placeholder="학생 4" value="곰돌이" class="flex-grow text-xl border-2 border-gray-300 rounded p-2 focus:border-blue-500 focus:outline-none">
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-3xl">🐸</span>
+                    <input type="text" id="setup-name-5" placeholder="학생 5" value="개구리" class="flex-grow text-xl border-2 border-gray-300 rounded p-2 focus:border-blue-500 focus:outline-none">
+                </div>
+            </div>
+
+            <button onclick="initializeGame()" class="bg-blue-500 hover:bg-blue-600 text-white text-2xl font-bold py-3 px-10 rounded-full shadow-lg active:scale-95 w-full">
+                🚀 달리기 준비 완료!
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. 커스텀 메시지 모달 (alert 대체) -->
+    <div id="messageModal" class="overlay">
+        <div class="modal-box border-4 border-yellow-400">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800" id="messageText">메시지 내용</h2>
+            <button onclick="closeMessage()" class="bg-yellow-400 hover:bg-yellow-500 text-gray-900 text-xl font-bold py-2 px-8 rounded-full shadow">확인</button>
+        </div>
+    </div>
+
+    <!-- 3. 재시작 확인 모달 (confirm 대체) -->
+    <div id="confirmModal" class="overlay">
+        <div class="modal-box border-4 border-red-400">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">게임을 완전히 초기화하고<br>이름 설정부터 다시 할까요?</h2>
+            <div class="flex justify-center gap-4">
+                <button onclick="resetGame()" class="bg-red-500 hover:bg-red-600 text-white text-xl font-bold py-2 px-8 rounded-lg shadow">네, 다시할래요</button>
+                <button onclick="closeConfirm()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 text-xl font-bold py-2 px-8 rounded-lg shadow">아니요</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. 우승자 발표 모달 -->
+    <div id="winnerModal" class="overlay" style="z-index: 300;">
+        <div class="modal-box border-4 border-yellow-400 bg-yellow-50">
+            <div class="text-6xl mb-4">🏆</div>
+            <h2 class="text-4xl font-bold mb-4 text-gray-800"><span id="winnerName" class="text-blue-600">이름</span> 우승!</h2>
+            <p class="text-xl text-gray-600 mb-8">결승선에 무사히 도착했어요. 모두 박수! 👏</p>
+            <button onclick="closeWinnerModal()" class="bg-indigo-500 hover:bg-indigo-600 text-white text-2xl font-bold py-3 px-8 rounded-full shadow">계속 구경하기</button>
+        </div>
+    </div>
+
+    <script>
+        // 게임 설정
+        const TOTAL_STEPS = 20; // 결승선까지의 총 칸 수 (원하시면 이 숫자를 변경하세요)
+        let gameFinished = false;
+
+        // 참가자 데이터 모델
+        const racerData = [
+            { id: 1, name: "", icon: "🐶", position: 0, color: "blue" },
+            { id: 2, name: "", icon: "🐱", position: 0, color: "pink" },
+            { id: 3, name: "", icon: "🐰", position: 0, color: "purple" },
+            { id: 4, name: "", icon: "🐻", position: 0, color: "yellow" },
+            { id: 5, name: "", icon: "🐸", position: 0, color: "green" }
+        ];
+
+        // ----------------------------------------------------
+        // UI 모달 컨트롤 함수 (alert, confirm 대체)
+        // ----------------------------------------------------
+        function showMessage(text) {
+            document.getElementById('messageText').innerText = text;
+            document.getElementById('messageModal').style.display = 'flex';
+        }
+        function closeMessage() {
+            document.getElementById('messageModal').style.display = 'none';
+        }
+        function confirmReset() {
+            document.getElementById('confirmModal').style.display = 'flex';
+        }
+        function closeConfirm() {
+            document.getElementById('confirmModal').style.display = 'none';
+        }
+
+        // ----------------------------------------------------
+        // 게임 초기화 및 시작
+        // ----------------------------------------------------
+        function initializeGame() {
+            // 1. 이름 설정 저장
+            for (let i = 0; i < 5; i++) {
+                const inputName = document.getElementById(`setup-name-${i+1}`).value.trim();
+                // 이름이 비어있으면 기본값(학생 1, 학생 2...) 할당
+                racerData[i].name = inputName || `학생 ${i+1}`;
+                racerData[i].position = 0; // 위치 초기화
+            }
+
+            gameFinished = false;
+
+            // 2. 화면 그리기
+            drawTrack();
+            drawControls();
+            
+            // 3. 캐릭터 초기 위치 지정
+            updateAllPositions();
+
+            // 4. 시작 화면 숨기기
+            document.getElementById('startScreen').style.display = 'none';
+        }
+
+        // ----------------------------------------------------
+        // 트랙(칸)과 캐릭터 그리기
+        // ----------------------------------------------------
+        function drawTrack() {
+            const trackBoard = document.getElementById('track-board');
+            trackBoard.innerHTML = ''; // 기존 내용 지우기
+
+            racerData.forEach(racer => {
+                // 레인 래퍼
+                const lane = document.createElement('div');
+                lane.className = 'lane-wrapper bg-white';
+
+                // 출발 구역
+                const startZone = document.createElement('div');
+                startZone.className = 'start-zone';
+                startZone.innerHTML = `<span class="truncate px-2">${racer.name}</span>`;
+
+                // 달리기 구역 (칸 생성)
+                const trackZone = document.createElement('div');
+                trackZone.className = 'track-zone';
+                trackZone.id = `track-zone-${racer.id}`;
+
+                for(let i = 1; i <= TOTAL_STEPS; i++) {
+                    const step = document.createElement('div');
+                    step.className = 'step-cell';
+                    step.innerText = i; // 칸 숫자 표시
+                    trackZone.appendChild(step);
+                }
+
+                // 캐릭터 요소 생성
+                const racerEl = document.createElement('div');
+                racerEl.className = 'racer';
+                racerEl.id = `racer-${racer.id}`;
+                racerEl.innerHTML = `
+                    <div class="racer-icon">${racer.icon}</div>
+                    <div class="racer-name text-${racer.color}-600 font-bold">${racer.name}</div>
+                `;
+                
+                // 캐릭터를 trackZone에 추가 (absolute positioning)
+                trackZone.appendChild(racerEl);
+
+                // 결승 구역
+                const finishZone = document.createElement('div');
+                finishZone.className = 'finish-zone';
+
+                // 조립
+                lane.appendChild(startZone);
+                lane.appendChild(trackZone);
+                lane.appendChild(finishZone);
+                trackBoard.appendChild(lane);
+            });
+        }
+
+        // ----------------------------------------------------
+        // 입력 컨트롤 패널 그리기
+        // ----------------------------------------------------
+        function drawControls() {
+            const container = document.getElementById('dice-inputs-container');
+            container.innerHTML = '';
+
+            racerData.forEach(racer => {
+                const bgColors = {
+                    'blue': 'bg-blue-50 border-blue-200',
+                    'pink': 'bg-pink-50 border-pink-200',
+                    'purple': 'bg-purple-50 border-purple-200',
+                    'yellow': 'bg-yellow-50 border-yellow-200',
+                    'green': 'bg-green-50 border-green-200'
+                };
+                
+                const focusColors = {
+                    'blue': 'focus:border-blue-500',
+                    'pink': 'focus:border-pink-500',
+                    'purple': 'focus:border-purple-500',
+                    'yellow': 'focus:border-yellow-500',
+                    'green': 'focus:border-green-500'
+                };
+
+                const card = document.createElement('div');
+                card.className = `flex flex-col items-center justify-center p-2 md:p-3 rounded-xl border ${bgColors[racer.color]}`;
+                
+                card.innerHTML = `
+                    <div class="text-sm md:text-base font-bold text-gray-700 mb-1 truncate w-full text-center">${racer.icon} ${racer.name}</div>
+                    <input type="number" id="dice-input-${racer.id}" min="0" max="6" 
+                           class="w-full h-12 text-center text-2xl font-bold border-2 rounded-lg bg-white ${focusColors[racer.color]} outline-none transition-colors" 
+                           placeholder="0">
+                `;
+                container.appendChild(card);
+                
+                // 엔터키 이벤트 (마지막 입력창에서 엔터 치면 자동 실행)
+                document.getElementById(`dice-input-${racer.id}`).addEventListener('keypress', function (e) {
+                    if (e.key === 'Enter') {
+                        moveAllRacers();
+                    }
+                });
+            });
+        }
+
+        // ----------------------------------------------------
+        // 이동 로직
+        // ----------------------------------------------------
+        function moveAllRacers() {
+            if (gameFinished) {
+                showMessage("이미 게임이 끝났습니다. 처음부터 다시 시작해주세요!");
+                return;
+            }
+
+            let anyoneMoved = false;
+            let currentWinners = [];
+
+            // 1. 값 읽어오고 위치 업데이트
+            racerData.forEach(racer => {
+                const inputEl = document.getElementById(`dice-input-${racer.id}`);
+                const diceValue = parseInt(inputEl.value);
+
+                // 값이 없거나 NaN이면 0으로 처리 (이동 안함)
+                if (!isNaN(diceValue) && diceValue > 0) {
+                    racer.position += diceValue;
+                    anyoneMoved = true;
+                }
+                
+                // 결승선(TOTAL_STEPS)을 넘어가면 최대값으로 고정
+                if (racer.position >= TOTAL_STEPS) {
+                    racer.position = Math.min(racer.position, TOTAL_STEPS);
+                    currentWinners.push(racer); // 방금 턴에 도착한 사람
+                }
+                
+                // 입력창 초기화
+                inputEl.value = '';
+            });
+
+            if (!anyoneMoved) {
+                showMessage("주사위 숫자를 하나 이상 입력해주세요!");
+                return;
+            }
+
+            // 2. 화면에 애니메이션 반영
+            updateAllPositions();
+
+            // 3. 우승자 체크 (도착한 사람이 있다면)
+            if (currentWinners.length > 0) {
+                gameFinished = true;
+                // 애니메이션이 끝날 즈음(0.8초 후)에 모달 띄우기
+                setTimeout(() => {
+                    showWinnerModal(currentWinners);
+                    createConfetti();
+                }, 800);
+            }
+        }
+
+        // ----------------------------------------------------
+        // 캐릭터 화면 위치 업데이트
+        // ----------------------------------------------------
+        function updateAllPositions() {
+            racerData.forEach(racer => {
+                const racerEl = document.getElementById(`racer-${racer.id}`);
+                
+                if (racer.position === 0) {
+                    // 출발 전: start-zone에 있도록 왼쪽으로 빼둠
+                    racerEl.style.left = `-80px`;
+                } else {
+                    // 칸 중심에 위치시키기 위한 계산
+                    // track-zone 넓이가 100%일 때 한 칸의 넓이 비율
+                    const cellPercentage = 100 / TOTAL_STEPS;
+                    
+                    // 해당 칸의 정중앙 퍼센트 구하기
+                    // 예: 1칸 이동 시 -> 0.5칸 위치, 2칸 이동 시 -> 1.5칸 위치
+                    const targetPercentage = (racer.position - 0.5) * cellPercentage;
+                    
+                    // CSS calc를 통해 칸 중앙 퍼센트에서 캐릭터의 절반 너비(25px)만큼 빼서 정중앙 정렬
+                    racerEl.style.left = `calc(${targetPercentage}% - 25px)`;
+                }
+            });
+        }
+
+        // ----------------------------------------------------
+        // 우승 및 초기화 처리
+        // ----------------------------------------------------
+        function showWinnerModal(winners) {
+            const modal = document.getElementById('winnerModal');
+            const nameEl = document.getElementById('winnerName');
+            
+            // 다수일 경우 이름 합치기 (예: "강아지, 고양이")
+            const winnerNames = winners.map(w => w.name).join(", ");
+            nameEl.innerText = winnerNames;
+            
+            modal.style.display = 'flex';
+        }
+
+        function closeWinnerModal() {
+            document.getElementById('winnerModal').style.display = 'none';
+        }
+
+        function resetGame() {
+            closeConfirm();
+            closeWinnerModal();
+            // 입력 폼 내용 비우기
+            for(let i=0; i<5; i++){
+                document.getElementById(`setup-name-${i+1}`).value = '';
+            }
+            // 시작 화면 다시 보이기
+            document.getElementById('startScreen').style.display = 'flex';
+        }
+
+        // 색종이 조각 애니메이션 (우승 축하)
+        function createConfetti() {
+            const colors = ['#ef4444', '#22c55e', '#3b82f6', '#eab308', '#d946ef', '#06b6d4', '#f97316'];
+            for (let i = 0; i < 150; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                
+                // 랜덤 스타일 적용
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                
+                // 다양한 크기
+                const size = Math.random() * 10 + 5;
+                confetti.style.width = `${size}px`;
+                confetti.style.height = `${size}px`;
+                
+                // 애니메이션 속성 랜덤화
+                const duration = Math.random() * 3 + 2;
+                const delay = Math.random() * 1.5;
+                confetti.style.animation = `fall ${duration}s ease-in ${delay}s forwards`;
+                
+                document.body.appendChild(confetti);
+
+                // 애니메이션 종료 후 DOM에서 제거
+                setTimeout(() => {
+                    confetti.remove();
+                }, (duration + delay) * 1000);
+            }
+        }
+
+    </script>
+</body>
+</html>
