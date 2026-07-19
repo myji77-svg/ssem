@@ -177,19 +177,20 @@
 
         <!-- 컨트롤 패널 (동시 입력) -->
         <div class="bg-white border-4 border-indigo-200 rounded-2xl shadow-lg p-4 mt-4 flex-shrink-0">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+            <!-- 입력창과 버튼을 한 줄에 배치 (flex-row) -->
+            <div class="flex flex-row gap-2 md:gap-4 items-stretch">
                 
-                <!-- 5명의 주사위 입력창이 한 줄에 나열됨 -->
-                <div class="flex-grow grid grid-cols-5 gap-2 md:gap-4 w-full" id="dice-inputs-container">
+                <!-- 5명의 주사위 입력창 -->
+                <div class="flex-grow grid grid-cols-5 gap-2 md:gap-4" id="dice-inputs-container">
                     <!-- JS에서 동적 생성됨 -->
                 </div>
 
-                <!-- 동시에 이동 버튼 -->
-                <div class="w-full md:w-auto">
-                    <button onclick="moveAllRacers()" class="w-full h-full min-h-[80px] bg-indigo-500 hover:bg-indigo-600 text-white text-2xl font-bold py-4 px-8 rounded-xl shadow-lg active:scale-95 transition-transform flex flex-col items-center justify-center border-b-4 border-indigo-700">
-                        <span>🏃 이동하기!</span>
-                    </button>
-                </div>
+                <!-- 동시에 이동 버튼 (우측에 아담하게 배치) -->
+                <button onclick="moveAllRacers()" class="w-20 md:w-32 bg-indigo-500 hover:bg-indigo-600 text-white text-base md:text-lg font-bold rounded-xl shadow-md active:scale-95 transition-transform flex flex-col items-center justify-center border-b-4 border-indigo-700 p-2 leading-tight flex-shrink-0">
+                    <span class="text-xl md:text-2xl mb-1">🏃</span>
+                    <span>모두</span>
+                    <span>이동!</span>
+                </button>
             </div>
         </div>
 
