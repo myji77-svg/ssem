@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>친구 뽑기 룰렛</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+      background: linear-gradient(135deg, #e8f8ff, #fff7d6, #eefbe8);
+      color: #263238;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .app {
+      width: min(1100px, 100%);
+      background: rgba(255,255,255,.94);
+      border: 4px solid #ffffff;
+      border-radius: 30px;
+      box-shadow: 0 16px 40px rgba(65, 105, 130, .18);
+      padding: 24px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      text-align: center;
+      font-size: clamp(30px, 5vw, 52px);
+      color: #3478c5;
+    }
+    .subtitle {
+      text-align: center;
+      margin-bottom: 22px;
+      font-size: 18px;
+      color: #607d8b;
+    }
+    .main {
+      display: grid;
+      grid-template-columns: 1.4fr .9fr;
+      gap: 28px;
+      align-items: center;
+    }
+    .wheel-area {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 560px;
+    }
+    canvas {
+      width: min(540px, 90vw);
+      height: min(540px, 90vw);
+      max-width: 540px;
+      max-height: 540px;
+      filter: drop-shadow(0 10px 12px rgba(0,0,0,.12));
+    }
+    .pointer {
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 24px solid transparent;
+      border-right: 24px solid transparent;
+      border-top: 55px solid #ff5c73;
+      z-index: 3;
+      filter: drop-shadow(0 4px 3px rgba(0,0,0,.2));
+    }
+    .panel {
+      background: #f8fcff;
+      border: 3px solid #dff2ff;
+      border-radius: 24px;
+      padding: 20px;
+    }
+    .panel h2 {
+      margin: 0 0 12px;
+      color: #3d7f9f;
+      font-size: 24px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 210px;
+      resize: vertical;
+      border: 2px solid #bfe2f5;
+      border-radius: 16px;
+      padding: 14px;
+      font-size: 19px;
+      line-height: 1.7;
+      outline: none;
+      background: #fff;
+    }
+    textarea:focus { border-color: #66bde8; }
+    .hint {
+      margin: 8px 2px 16px;
+      font-size: 14px;
+      color: #78909c;
+    }
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 18px;
+      padding: 16px 18px;
+      font-size: 23px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform .15s ease, opacity .15s ease;
+    }
+    button:hover { transform: translateY(-2px); }
+    button:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+    #spinBtn {
+      background: linear-gradient(135deg, #ffca55, #ff8b5f);
+      color: #fff;
+      box-shadow: 0 8px 18px rgba(255, 139, 95, .28);
+      margin-bottom: 10px;
+    }
+    #updateBtn {
+      background: #75c9f1;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+    #removeBtn {
+      background: #a7df9a;
+      color: #205a2b;
+      font-size: 17px;
+      padding: 12px;
+    }
+    .result {
+      margin-top: 16px;
+      min-height: 92px;
+      border-radius: 18px;
+      background: #fff6c9;
+      border: 3px dashed #ffd764;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 14px;
+      font-size: 25px;
+      font-weight: 900;
+      color: #ff6f3c;
+    }
+    .rules {
+      margin-top: 18px;
+      background: #eef9ee;
+      border-radius: 16px;
+      padding: 14px 16px;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+    .confetti {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 10;
+    }
+    .piece {
+      position: absolute;
+      top: -20px;
+      width: 10px;
+      height: 18px;
+      border-radius: 3px;
+      animation: fall 1.8s linear forwards;
+    }
+    @keyframes fall {
+      to { transform: translateY(110vh) rotate(720deg); opacity: .9; }
+    }
+    @media (max-width: 850px) {
+      .main { grid-template-columns: 1fr; }
+      .wheel-area { min-height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>🎡 친구 뽑기 룰렛</h1>
+    <div class="subtitle">룰렛을 돌려 오늘의 로봇 친구를 정해 보아요!</div>
+
+    <div class="main">
+      <div class="wheel-area">
+        <div class="pointer"></div>
+        <canvas id="wheel" width="700" height="700" aria-label="친구 뽑기 룰렛"></canvas>
+      </div>
+
+      <section class="panel">
+        <h2>✏️ 친구 이름 입력</h2>
+        <textarea id="names">민준
+서연
+지우
+하준
+도윤
+하은
+지민
+서준</textarea>
+        <div class="hint">한 줄에 이름을 하나씩 입력하세요.</div>
+
+        <button id="updateBtn">룰렛에 이름 넣기</button>
+        <button id="spinBtn">🎲 룰렛 돌리기!</button>
+        <button id="removeBtn">뽑힌 친구 제외하기</button>
+
+        <div class="result" id="result">누가 로봇이 될까요? 🤖</div>
+
+        <div class="rules">
+          <strong>수업 활용 방법</strong><br>
+          ① 친구 이름을 입력해요.<br>
+          ② 룰렛을 한 번만 돌려요.<br>
+          ③ 뽑힌 친구가 로봇 역할을 해요.<br>
+          ④ 다시 뽑을 때는 ‘뽑힌 친구 제외하기’를 눌러요.
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="confetti" id="confetti"></div>
+
+  <script>
+    const canvas = document.getElementById("wheel");
+    const ctx = canvas.getContext("2d");
+    const namesInput = document.getElementById("names");
+    const resultBox = document.getElementById("result");
+    const spinBtn = document.getElementById("spinBtn");
+    const updateBtn = document.getElementById("updateBtn");
+    const removeBtn = document.getElementById("removeBtn");
+
+    const colors = [
+      "#ff8a80", "#ffd180", "#ffff8d", "#b9f6ca",
+      "#80d8ff", "#8c9eff", "#b388ff", "#f8bbd0",
+      "#a7ffeb", "#ffccbc", "#c5e1a5", "#b3e5fc"
+    ];
+
+    let names = [];
+    let rotation = 0;
+    let spinning = false;
+    let selectedName = "";
+
+    function parseNames() {
+      return namesInput.value
+        .split(/\n|,/)
+        .map(v => v.trim())
+        .filter(Boolean)
+        .slice(0, 30);
+    }
+
+    function drawWheel() {
+      names = parseNames();
+      const size = canvas.width;
+      const center = size / 2;
+      const radius = center - 18;
+
+      ctx.clearRect(0, 0, size, size);
+
+      if (names.length === 0) {
+        ctx.beginPath();
+        ctx.arc(center, center, radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#eceff1";
+        ctx.fill();
+        ctx.fillStyle = "#607d8b";
+        ctx.font = "bold 32px Malgun Gothic";
+        ctx.textAlign = "center";
+        ctx.fillText("이름을 입력해 주세요", center, center);
+        return;
+      }
+
+      const arc = (Math.PI * 2) / names.length;
+
+      names.forEach((name, i) => {
+        const start = rotation + i * arc - Math.PI / 2;
+        const end = start + arc;
+
+        ctx.beginPath();
+        ctx.moveTo(center, center);
+        ctx.arc(center, center, radius, start, end);
+        ctx.closePath();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = "#ffffff";
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(center, center);
+        ctx.rotate(start + arc / 2);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#263238";
+        const fontSize = names.length > 18 ? 20 : names.length > 12 ? 25 : 31;
+        ctx.font = `bold ${fontSize}px Malgun Gothic`;
+        ctx.fillText(name, radius - 35, 10);
+        ctx.restore();
+      });
+
+      ctx.beginPath();
+      ctx.arc(center, center, 68, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = "#75c9f1";
+      ctx.stroke();
+
+      ctx.fillStyle = "#3478c5";
+      ctx.font = "bold 40px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("AI", center, center + 2);
+    }
+
+    function normalizeAngle(a) {
+      const full = Math.PI * 2;
+      return ((a % full) + full) % full;
+    }
+
+    function getSelectedIndex() {
+      const arc = (Math.PI * 2) / names.length;
+      const pointerAngle = -Math.PI / 2;
+      const relative = normalizeAngle(pointerAngle - rotation);
+      return Math.floor(relative / arc) % names.length;
+    }
+
+    function launchConfetti() {
+      const layer = document.getElementById("confetti");
+      layer.innerHTML = "";
+      const palette = ["#ff6b6b", "#ffd93d", "#6bcb77", "#4d96ff", "#b983ff"];
+      for (let i = 0; i < 70; i++) {
+        const p = document.createElement("div");
+        p.className = "piece";
+        p.style.left = Math.random() * 100 + "vw";
+        p.style.background = palette[Math.floor(Math.random() * palette.length)];
+        p.style.animationDelay = Math.random() * .5 + "s";
+        p.style.transform = `rotate(${Math.random() * 360}deg)`;
+        layer.appendChild(p);
+      }
+      setTimeout(() => layer.innerHTML = "", 2300);
+    }
+
+    function speak(text) {
+      if (!("speechSynthesis" in window)) return;
+      speechSynthesis.cancel();
+      const msg = new SpeechSynthesisUtterance(text);
+      msg.lang = "ko-KR";
+      msg.rate = 0.95;
+      speechSynthesis.speak(msg);
+    }
+
+    function spin() {
+      if (spinning || names.length < 2) {
+        if (names.length < 2) resultBox.textContent = "친구 이름을 2명 이상 입력해 주세요.";
+        return;
+      }
+
+      spinning = true;
+      spinBtn.disabled = true;
+      updateBtn.disabled = true;
+      removeBtn.disabled = true;
+      resultBox.textContent = "룰렛이 빙글빙글! 🎡";
+
+      const startRotation = rotation;
+      const extraTurns = 6 + Math.random() * 4;
+      const randomOffset = Math.random() * Math.PI * 2;
+      const targetRotation = startRotation + extraTurns * Math.PI * 2 + randomOffset;
+      const duration = 4200;
+      const startTime = performance.now();
+
+      function animate(now) {
+        const t = Math.min((now - startTime) / duration, 1);
+        const eased = 1 - Math.pow(1 - t, 4);
+        rotation = startRotation + (targetRotation - startRotation) * eased;
+        drawWheel();
+
+        if (t < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          spinning = false;
+          spinBtn.disabled = false;
+          updateBtn.disabled = false;
+          removeBtn.disabled = false;
+
+          const idx = getSelectedIndex();
+          selectedName = names[idx];
+          resultBox.textContent = `🎉 ${selectedName} 친구가 뽑혔어요!`;
+          launchConfetti();
+          speak(`${selectedName} 친구가 뽑혔어요`);
+        }
+      }
+      requestAnimationFrame(animate);
+    }
+
+    updateBtn.addEventListener("click", () => {
+      selectedName = "";
+      resultBox.textContent = "누가 로봇이 될까요? 🤖";
+      drawWheel();
+    });
+
+    spinBtn.addEventListener("click", spin);
+
+    removeBtn.addEventListener("click", () => {
+      if (!selectedName) {
+        resultBox.textContent = "먼저 룰렛을 돌려 친구를 뽑아 주세요.";
+        return;
+      }
+      const next = parseNames().filter(name => name !== selectedName);
+      namesInput.value = next.join("\n");
+      selectedName = "";
+      resultBox.textContent = "뽑힌 친구를 제외했어요. 다시 돌려 보세요!";
+      drawWheel();
+    });
+
+    drawWheel();
+  </script>
+</body>
+</html>
