@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>부일초 엔트리 계정 복사</title>
+  <style>
+    :root { --navy:#173b63; --blue:#2476d2; --sky:#eaf4ff; --green:#16835b; --purple:#7357c7; --ink:#17212b; --muted:#607080; --line:#d7e1ea; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif; color:var(--ink); background:linear-gradient(145deg,#e9f5ff 0%,#f8fbff 45%,#edf9f3 100%); }
+    main { width:min(680px,calc(100% - 28px)); margin:0 auto; padding:42px 0 56px; }
+    .card { background:#fff; border:1px solid rgba(23,59,99,.12); border-radius:24px; padding:clamp(22px,5vw,38px); box-shadow:0 18px 55px rgba(31,65,95,.14); }
+    h1 { margin:0; color:var(--navy); font-size:clamp(27px,6vw,40px); letter-spacing:-1.5px; text-align:center; }
+    .subtitle { margin:10px 0 30px; color:var(--muted); text-align:center; font-size:16px; }
+    label { display:block; margin:0 0 9px; font-weight:700; font-size:17px; }
+    select { width:100%; height:58px; border:2px solid var(--line); border-radius:14px; padding:0 16px; font:700 20px/1 "Malgun Gothic",sans-serif; color:var(--ink); background:#fff; outline:none; }
+    select:focus { border-color:var(--blue); box-shadow:0 0 0 4px rgba(36,118,210,.12); }
+    .selectors { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+    .account { margin-top:22px; padding:20px; border-radius:18px; background:var(--sky); }
+    .student { margin-bottom:16px; color:var(--navy); font-size:24px; font-weight:800; text-align:center; }
+    .buttons { display:grid; gap:12px; }
+    button { width:100%; min-height:62px; border:0; border-radius:15px; padding:13px 18px; color:#fff; font:800 19px/1.25 "Malgun Gothic",sans-serif; cursor:pointer; box-shadow:0 7px 15px rgba(29,59,89,.15); transition:transform .08s ease,filter .15s ease; }
+    button:hover { filter:brightness(1.06); }
+    button:active { transform:translateY(2px); }
+    .id { background:var(--blue); }
+    .temp { background:var(--green); }
+    .password { background:var(--purple); }
+    .help { margin:8px 2px 0; color:var(--muted); font-size:13px; line-height:1.55; }
+    .notice { min-height:26px; margin:20px 0 0; color:var(--navy); font-weight:800; text-align:center; }
+    .privacy { margin:18px 0 0; color:#73808c; font-size:12px; line-height:1.55; text-align:center; }
+    @media (max-width:480px) { main{padding-top:18px}.card{border-radius:18px}.selectors{grid-template-columns:1fr} button{font-size:18px} }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="card" aria-labelledby="title">
+      <h1 id="title">엔트리 계정 복사</h1>
+      <p class="subtitle">학년, 반, 번호를 차례로 선택하세요.</p>
+
+      <div class="selectors">
+        <div><label for="grade">학년</label><select id="grade" aria-label="학년 선택"></select></div>
+        <div><label for="classNumber">반</label><select id="classNumber" aria-label="반 선택"></select></div>
+        <div><label for="studentNumber">번호</label><select id="studentNumber" aria-label="번호 선택"></select></div>
+      </div>
+
+      <div class="account">
+        <div class="student" id="studentLabel">3학년 1반 1번</div>
+        <div class="buttons">
+          <button class="id" id="copyId" type="button">아이디 복사</button>
+          <button class="temp" id="copyTemp" type="button">임시 비밀번호 복사</button>
+          <button class="password" id="copyPassword" type="button">비밀번호 복사</button>
+        </div>
+      </div>
+
+      <p class="notice" id="notice" role="status" aria-live="polite"></p>
+      <p class="privacy">계정 정보가 들어 있는 파일입니다. 선생님이 안내한 기기에서만 사용하세요.</p>
+    </section>
+  </main>
+
+  <script>
+    const accountGroups = {"3-1":[["1","bi310150740","155285"],["2","bi310299204","914192"],["3","bi310353662","848313"],["4","bi310435376","407616"],["5","bi310593348","717216"],["6","bi310601481","523842"],["7","bi310792958","384542"],["8","bi310878176","550489"],["9","bi310985096","189037"],["10","bi311068976","879559"],["11","bi311148734","925929"],["12","bi311234666","712560"],["13","bi311393734","740917"],["14","bi311418691","560601"],["15","bi311535542","725125"],["16","bi311688219","702108"],["17","bi311727734","698743"],["18","bi311878410","154573"],["19","bi311949080","135171"],["20","bi312015627","933385"],["21","bi312146266","498198"],["22","bi312284576","288567"],["23","bi312326190","961935"],["24","bi312431690","200638"],["25","bi312514255","239643"],["26","bi312612958","720454"],["27","bi312721379","306697"],["28","bi312814657","824062"],["29","bi312979855","447275"]],"3-2":[["1","bi320134626","101892"],["2","bi320271814","228059"],["3","bi320319504","437043"],["4","bi320467985","686382"],["5","bi320522972","274905"],["6","bi320609689","426786"],["7","bi320787981","824812"],["8","bi320853965","457084"],["9","bi320920836","774200"],["10","bi321075580","115342"],["11","bi321156795","480674"],["12","bi321265531","487025"],["13","bi321363316","672589"],["14","bi321426164","812506"],["15","bi321501772","513461"],["16","bi321687114","164276"],["17","bi321742363","549357"],["18","bi321808875","969172"],["19","bi321917645","667664"],["20","bi322000256","348782"],["21","bi322142765","864991"],["22","bi322242852","653112"],["23","bi322391737","859968"],["24","bi322446848","528229"],["25","bi322522194","742845"],["26","bi322693181","818406"],["27","bi322758454","376640"],["28","bi322892855","425307"],["29","bi322984975","335344"]],"4-1":[["1","bi410187379","155007"],["2","bi410263583","184807"],["3","bi410337834","424196"],["4","bi410426434","301194"],["5","bi410581019","607025"],["6","bi410666680","718558"],["7","bi410758970","919154"],["8","bi410861241","734755"],["9","bi410983897","318630"],["10","bi411035002","545273"],["11","bi411117790","128537"],["12","bi411263444","657741"],["13","bi411328651","361335"],["14","bi411489983","984752"],["15","bi411591842","774099"],["16","bi411626321","887602"],["17","bi411749207","605373"],["18","bi411897143","906741"],["19","bi411957584","849842"],["20","bi412010470","727222"],["21","bi412118061","641513"],["22","bi412277905","349327"],["23","bi412354748","551779"],["24","bi412439710","178497"],["25","bi412585519","976604"],["26","bi412664467","498332"],["27","bi412710284","542010"],["28","bi412800099","911761"],["29","bi412935855","215581"]],"4-2":[["1","bi420192671","614735"],["2","bi420203002","486387"],["3","bi420366404","796037"],["4","bi420445059","453909"],["5","bi420583028","741502"],["6","bi420623011","440070"],["7","bi420726253","321692"],["8","bi420839560","294217"],["9","bi420931785","161445"],["10","bi421084866","520443"],["11","bi421135678","999408"],["12","bi421290777","901048"],["13","bi421344494","181081"],["14","bi421411498","425347"],["15","bi421518177","639244"],["16","bi421626948","592606"],["17","bi421791775","960398"],["18","bi421831583","713165"],["19","bi421901345","631972"],["20","bi422041831","820363"],["21","bi422111013","482665"],["22","bi422275779","938200"],["23","bi422309312","543046"],["24","bi422463452","285445"],["25","bi422552690","408681"],["26","bi422642288","107755"],["27","bi422704027","367225"],["28","bi422894756","900533"],["29","bi422991314","563340"]],"5-1":[["1","bi510141929","152134"],["2","bi510290241","317395"],["3","bi510391318","343236"],["4","bi510459728","653136"],["5","bi510515482","903512"],["6","bi510670915","703989"],["7","bi510716163","357035"],["8","bi510880717","439189"],["9","bi510919937","754699"],["10","bi511067177","564308"],["11","bi511174352","790897"],["12","bi511247061","431591"],["13","bi511349058","119782"],["14","bi511418131","520464"],["15","bi511527028","982115"],["16","bi511660884","642950"],["17","bi511776184","704866"],["18","bi511829444","770701"],["19","bi511912884","572940"],["20","bi512000171","554461"],["21","bi512137890","715497"],["22","bi512297090","160475"],["23","bi512379877","507248"],["24","bi512404965","140647"],["25","bi512527712","290500"],["26","bi512675825","390972"],["27","bi512754919","413898"],["28","bi512876640","605784"],["29","bi512984620","206085"]],"5-2":[["1","bi520121166","247382"],["2","bi520294959","316031"],["3","bi520313788","821608"],["4","bi520496473","418997"],["5","bi520587070","719515"],["6","bi520602667","937182"],["7","bi520740922","687040"],["8","bi520829011","549356"],["9","bi520994980","738663"],["10","bi521042254","679313"],["11","bi521195493","111501"],["12","bi521247654","402447"],["13","bi521315062","378374"],["14","bi521450625","471209"],["15","bi521520841","551319"],["16","bi521639311","151598"],["17","bi521711574","632738"],["18","bi521883576","949476"],["19","bi521985519","530702"],["20","bi522010431","952183"],["21","bi522140431","941133"],["22","bi522266440","360118"],["23","bi522303697","160395"],["24","bi522469369","713682"],["25","bi522560108","241884"],["26","bi522607193","405613"],["27","bi522716539","315354"],["28","bi522874216","504819"],["29","bi522965934","674534"]],"6-1":[["1","bi610139935","225417"],["2","bi610246134","694613"],["3","bi610369172","528841"],["4","bi610489010","744949"],["5","bi610561942","743043"],["6","bi610694983","936593"],["7","bi610777932","843130"],["8","bi610803406","184244"],["9","bi610977558","296986"],["10","bi611047470","403919"],["11","bi611137960","239470"],["12","bi611247974","264283"],["13","bi611393848","781809"],["14","bi611452056","812744"],["15","bi611572959","171852"],["16","bi611620689","556708"],["17","bi611716865","877015"],["18","bi611823468","526711"],["19","bi611970531","876540"],["20","bi612010583","732352"],["21","bi612179667","561057"],["22","bi612287931","374327"],["23","bi612315474","364479"],["24","bi612456963","803668"],["25","bi612575764","275785"],["26","bi612690381","590720"],["27","bi612743744","190348"],["28","bi612875157","760035"],["29","bi612992912","124851"]],"6-2":[["1","bi620191038","241408"],["2","bi620203596","764193"],["3","bi620322017","914745"],["4","bi620442788","728968"],["5","bi620563126","122396"],["6","bi620653085","742791"],["7","bi620757178","314740"],["8","bi620803774","393666"],["9","bi620958366","338654"],["10","bi621050375","930284"],["11","bi621195106","139951"],["12","bi621260484","410176"],["13","bi621349346","521199"],["14","bi621429862","974077"],["15","bi621591992","313885"],["16","bi621677536","657682"],["17","bi621771061","379801"],["18","bi621831144","318616"],["19","bi621921891","354984"],["20","bi622078576","884589"],["21","bi622141879","622494"],["22","bi622247404","809180"],["23","bi622370853","781852"],["24","bi622465344","523491"],["25","bi622504098","525105"],["26","bi622677636","155486"],["27","bi622791480","736072"],["28","bi622825372","464824"],["29","bi622990611","787819"]]};
+
+    const gradeSelect = document.querySelector('#grade');
+    const classSelect = document.querySelector('#classNumber');
+    const numberSelect = document.querySelector('#studentNumber');
+    const studentLabel = document.querySelector('#studentLabel');
+    const notice = document.querySelector('#notice');
+    const commonPassword = 'p369369';
+    let noticeTimer;
+
+    function setOptions(select, values, suffix) {
+      select.replaceChildren();
+      values.forEach((value) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value + suffix;
+        select.appendChild(option);
+      });
+    }
+    function availableClasses() {
+      const grade = gradeSelect.value;
+      return Object.keys(accountGroups).filter((key) => key.startsWith(grade + '-')).map((key) => key.split('-')[1]);
+    }
+    function currentGroup() { return accountGroups[gradeSelect.value + '-' + classSelect.value] || []; }
+    function currentAccount() { return currentGroup().find((item) => item[0] === numberSelect.value); }
+    function showNotice(message, isError = false) {
+      clearTimeout(noticeTimer);
+      notice.textContent = message;
+      notice.style.color = isError ? '#b42318' : '#173b63';
+      noticeTimer = setTimeout(() => { notice.textContent = ''; }, 2400);
+    }
+    function refreshLabel() {
+      studentLabel.textContent = gradeSelect.value + '학년 ' + classSelect.value + '반 ' + numberSelect.value + '번';
+      notice.textContent = '';
+    }
+    function refreshNumbers() {
+      setOptions(numberSelect, currentGroup().map((item) => item[0]), '번');
+      refreshLabel();
+    }
+    function refreshClasses() {
+      setOptions(classSelect, availableClasses(), '반');
+      refreshNumbers();
+    }
+    async function copyText(value, labelText) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(value);
+        } else {
+          const box = document.createElement('textarea');
+          box.value = value;
+          box.style.position = 'fixed'; box.style.opacity = '0';
+          document.body.appendChild(box); box.select();
+          if (!document.execCommand('copy')) throw new Error('copy failed');
+          box.remove();
+        }
+        showNotice(labelText + '가 복사되었습니다.');
+      } catch (_) { showNotice('복사하지 못했습니다. 브라우저의 클립보드 권한을 확인해 주세요.', true); }
+    }
+
+    setOptions(gradeSelect, ['3','4','5','6'], '학년');
+    gradeSelect.addEventListener('change', refreshClasses);
+    classSelect.addEventListener('change', refreshNumbers);
+    numberSelect.addEventListener('change', refreshLabel);
+    document.querySelector('#copyId').addEventListener('click', () => copyText(currentAccount()[1], '아이디'));
+    document.querySelector('#copyTemp').addEventListener('click', () => copyText(currentAccount()[2], '임시 비밀번호'));
+    document.querySelector('#copyPassword').addEventListener('click', () => copyText(commonPassword, '비밀번호'));
+    refreshClasses();
+  </script>
+</body>
+</html>
