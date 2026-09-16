@@ -23,7 +23,10 @@
     button:hover { filter:brightness(1.06); }
     button:active { transform:translateY(2px); }
     .id { background:var(--blue); }
-    .temp { background:var(--green); }
+    .temp-footer { margin-top:42px; text-align:right; }
+    button.temp { width:auto; min-height:30px; padding:6px 8px; border-radius:5px; background:transparent; color:#7a838c; font-size:12px; font-weight:400; box-shadow:none; }
+    button.temp:hover { color:#46515c; background:rgba(255,255,255,.5); }
+    button.temp:focus-visible { outline:2px solid #607080; outline-offset:3px; }
     .password { background:var(--purple); }
     .help { margin:8px 2px 0; color:var(--muted); font-size:13px; line-height:1.55; }
     .notice { min-height:26px; margin:20px 0 0; color:var(--navy); font-weight:800; text-align:center; }
@@ -47,7 +50,6 @@
         <div class="student" id="studentLabel">3학년 1반 1번</div>
         <div class="buttons">
           <button class="id" id="copyId" type="button">아이디 복사</button>
-          <button class="temp" id="copyTemp" type="button">임시 비밀번호 복사</button>
           <button class="password" id="copyPassword" type="button">비밀번호 복사</button>
         </div>
       </div>
@@ -55,6 +57,9 @@
       <p class="notice" id="notice" role="status" aria-live="polite"></p>
       <p class="privacy">계정 정보가 들어 있는 파일입니다. 선생님이 안내한 기기에서만 사용하세요.</p>
     </section>
+    <footer class="temp-footer">
+      <button class="temp" id="copyTemp" type="button">임시 비밀번호 복사</button>
+    </footer>
   </main>
 
   <script>
