@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>웹 브루마블 (완성판 - 땅 인수 시스템 도입)</title>
+    <style>
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin-bottom: 10px; }
+
+        #dashboard {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            margin-bottom: 20px;
+            background: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .status { font-weight: bold; font-size: 1.1rem; min-width: 150px; }
+        .p1-text { color: #e74c3c; text-align: right; }
+        .p2-text { color: #3498db; text-align: left; }
+
+        .dice-area { display: flex; align-items: center; gap: 15px; }
+
+        .dice {
+            width: 45px;
+            height: 45px;
+            background-color: white;
+            border: 3px solid #333;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.8rem;
+            font-weight: bold;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2), 0 3px 5px rgba(0,0,0,0.3);
+            transition: transform 0.1s;
+        }
+
+        .rolling { animation: shake 0.1s infinite alternate; }
+
+        @keyframes shake {
+            0% { transform: translate(2px, 1px) rotate(0deg); }
+            100% { transform: translate(-1px, -2px) rotate(-10deg); }
+        }
+
+        #dice-btn {
+            padding: 12px 24px;
+            font-size: 1rem;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 3px 0 #27ae60;
+        }
+        #dice-btn:hover { background-color: #27ae60; }
+        #dice-btn:active { transform: translateY(3px); box-shadow: none; }
+        #dice-btn:disabled { background-color: #95a5a6; box-shadow: 0 3px 0 #7f8c8d; cursor: not-allowed; }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(7, 110px);
+            grid-template-rows: repeat(7, 110px);
+            gap: 3px;
+            background-color: #bdc3c7;
+            padding: 3px;
+            border-radius: 5px;
+        }
+
+        .cell {
+            background-color: white;
+            border: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 4px;
+            box-sizing: border-box;
+            font-size: 0.75rem;
+            font-weight: bold;
+            position: relative;
+            text-align: center;
+            transition: background-color 0.3s ease;
+        }
+
+        .special-cell { background-color: #ffeaa7; }
+
+        /* 플레이어별 영토 배경색 정의 */
+        .owner-p1 { background-color: #ffdad7 !important; border: 2px solid #e74c3c; }
+        .owner-p2 { background-color: #d7ebff !important; border: 2px solid #3498db; }
+
+        .price-info {
+            font-size: 0.65rem;
+            color: #7f8c8d;
+            font-weight: normal;
+            margin-top: 2px;
+            line-height: 1.2;
+        }
+
+        .center-space {
+            grid-column: 2 / 7;
+            grid-row: 2 / 7;
+            background-color: #ecf0f1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            color: #7f8c8d;
+            font-weight: bold;
+        }
+
+        .piece-container {
+            position: absolute;
+            bottom: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            width: 100%;
+            height: 30px;
+        }
+
+        .piece {
+            font-size: 1.4rem;
+            transition: all 0.2s ease-in-out;
+            display: inline-block;
+        }
+
+        .moving {
+            transform: scale(1.4) translateY(-10px);
+            filter: drop-shadow(0 5px 5px rgba(0,0,0,0.3));
+        }
+
+        .active-turn { animation: blink 1s infinite alternate; }
+        @keyframes blink {
+            from { opacity: 1; } to { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🎲 웹 브루마블</h1>
+
+    <div id="dashboard">
+        <div class="status p1-text" id="p1-info">플레이어 1: 2,000,000원</div>
+        
+        <div class="dice-area">
+            <div class="dice" id="dice1">1</div>
+            <button id="dice-btn" onclick="rollDiceAnim()">주사위 던지기</button>
+            <div class="dice" id="dice2">1</div>
+        </div>
+        
+        <div class="status p2-text" id="p2-info">플레이어 2: 2,000,000원</div>
+    </div>
+    
+    <div id="msg" style="margin-bottom: 15px; font-weight: bold; color: #333;">플레이어 1의 턴입니다!</div>
+
+    <div id="board">
+        <div class="center-space">Blue Marble</div>
+    </div>
+
+<script>
+    const boardData = [
+        { name: "시작 (무인도)", cost: 0, rent: 0, isSpecial: true, owner: null },
+        { name: "방콕", cost: 100000, rent: 100000, isSpecial: false, owner: null },
+        { name: "타이베이", cost: 110000, rent: 110000, isSpecial: false, owner: null },
+        { name: "베이징", cost: 120000, rent: 120000, isSpecial: false, owner: null },
+        { name: "마닐라", cost: 130000, rent: 130000, isSpecial: false, owner: null },
+        { name: "싱가포르", cost: 140000, rent: 140000, isSpecial: false, owner: null },
+        { name: "황금열쇠", cost: 0, rent: 0, isSpecial: true, owner: null },
+        { name: "카이로", cost: 150000, rent: 150000, isSpecial: false, owner: null },
+        { name: "이스탄불", cost: 160000, rent: 160000, isSpecial: false, owner: null },
+        { name: "아테네", cost: 170000, rent: 170000, isSpecial: false, owner: null },
+        { name: "코펜하겐", cost: 180000, rent: 180000, isSpecial: false, owner: null },
+        { name: "스톡홀름", cost: 190000, rent: 190000, isSpecial: false, owner: null },
+        { name: "우주정거장", cost: 0, rent: 0, isSpecial: true, owner: null },
+        { name: "베를린", cost: 200000, rent: 200000, isSpecial: false, owner: null },
+        { name: "오타와", cost: 210000, rent: 210000, isSpecial: false, owner: null },
+        { name: "런던", cost: 220000, rent: 220000, isSpecial: false, owner: null },
+        { name: "파리", cost: 230000, rent: 230000, isSpecial: false, owner: null },
+        { name: "로마", cost: 240000, rent: 240000, isSpecial: false, owner: null },
+        { name: "기당첨지", cost: 0, rent: 0, isSpecial: true, owner: null },
+        { name: "도쿄", cost: 250000, rent: 250000, isSpecial: false, owner: null },
+        { name: "시드니", cost: 260000, rent: 260000, isSpecial: false, owner: null },
+        { name: "밴쿠버", cost: 270000, rent: 270000, isSpecial: false, owner: null },
+        { name: "뉴욕", cost: 280000, rent: 280000, isSpecial: false, owner: null },
+        { name: "서울", cost: 300000, rent: 300000, isSpecial: false, owner: null }
+    ];
+
+    const gridPositions = [
+        {r: 7, c: 7}, {r: 7, c: 6}, {r: 7, c: 5}, {r: 7, c: 4}, {r: 7, c: 3}, {r: 7, c: 2}, 
+        {r: 7, c: 1}, {r: 6, c: 1}, {r: 5, c: 1}, {r: 4, c: 1}, {r: 3, c: 1}, {r: 2, c: 1}, 
+        {r: 1, c: 1}, {r: 1, c: 2}, {r: 1, c: 3}, {r: 1, c: 4}, {r: 1, c: 5}, {r: 1, c: 6}, 
+        {r: 1, c: 7}, {r: 2, c: 7}, {r: 3, c: 7}, {r: 4, c: 7}, {r: 5, c: 7}, {r: 6, c: 7}  
+    ];
+
+    const players = [
+        { id: 1, name: "플레이어 1", money: 2000000, position: 0, emoji: "🔴" },
+        { id: 2, name: "플레이어 2", money: 2000000, position: 0, emoji: "🔵" }
+    ];
+    
+    let turn = 0; 
+    let isGameProcessing = false; 
+    let isGameOver = false; 
+
+    const board = document.getElementById('board');
+    
+    function createBoard() {
+        boardData.forEach((cellData, index) => {
+            const cell = document.createElement('div');
+            cell.className = `cell ${cellData.isSpecial ? 'special-cell' : ''}`;
+            cell.style.gridRow = gridPositions[index].r;
+            cell.style.gridColumn = gridPositions[index].c;
+            cell.id = `cell-block-${index}`;
+            
+            let content = `<div>${cellData.name}</div>`;
+            if (!cellData.isSpecial) {
+                content += `<div class="price-info" id="price-text-${index}">살 때: ${(cellData.cost / 10000)}만<br>낼 때: ${(cellData.rent / 10000)}만</div>`;
+            }
+            content += `<div class="piece-container" id="piece-container-${index}"></div>`;
+            cell.innerHTML = content;
+            board.appendChild(cell);
+        });
+    }
+
+    function updatePieces() {
+        for(let i=0; i<24; i++) {
+            document.getElementById(`piece-container-${i}`).innerHTML = '';
+        }
+        players.forEach(p => {
+            if (p.money >= 0) {
+                const container = document.getElementById(`piece-container-${p.position}`);
+                if (container) {
+                    const pieceSpan = document.createElement('span');
+                    pieceSpan.className = 'piece';
+                    pieceSpan.id = `player-piece-${p.id}`;
+                    pieceSpan.innerText = p.emoji;
+                    container.appendChild(pieceSpan);
+                }
+            }
+        });
+    }
+
+    function updateUI() {
+        document.getElementById('p1-info').innerText = `플레이어 1: ${players[0].money.toLocaleString()} 원`;
+        document.getElementById('p2-info').innerText = `플레이어 2: ${players[1].money.toLocaleString()} 원`;
+        
+        if (isGameOver) return;
+
+        if(turn === 0) {
+            document.getElementById('p1-info').classList.add('active-turn');
+            document.getElementById('p2-info').classList.remove('active-turn');
+            document.getElementById('msg').innerText = `🎲 플레이어 1의 턴입니다!`;
+        } else {
+            document.getElementById('p1-info').classList.remove('active-turn');
+            document.getElementById('p2-info').classList.add('active-turn');
+            document.getElementById('msg').innerText = `🎲 플레이어 2의 턴입니다!`;
+        }
+    }
+
+    function rollDiceAnim() {
+        if (isGameProcessing || isGameOver) return; 
+        isGameProcessing = true;
+
+        const btn = document.getElementById('dice-btn');
+        const d1El = document.getElementById('dice1');
+        const d2El = document.getElementById('dice2');
+
+        btn.disabled = true; 
+        d1El.classList.add('rolling'); 
+        d2El.classList.add('rolling');
+
+        let counter = 0;
+        const interval = setInterval(() => {
+            d1El.innerText = Math.floor(Math.random() * 6) + 1;
+            d2El.innerText = Math.floor(Math.random() * 6) + 1;
+            counter++;
+
+            if (counter >= 10) {
+                clearInterval(interval);
+                
+                const dice1 = Math.floor(Math.random() * 6) + 1;
+                const dice2 = Math.floor(Math.random() * 6) + 1;
+                
+                d1El.innerText = dice1;
+                d2El.innerText = dice2;
+                d1El.classList.remove('rolling');
+                d2El.classList.remove('rolling');
+                
+                animateMovePlayer(dice1 + dice2);
+            }
+        }, 50);
+    }
+
+    function animateMovePlayer(steps) {
+        const currentPlayer = players[turn];
+        let currentStep = 0;
+
+        const moveInterval = setInterval(() => {
+            const oldPos = currentPlayer.position;
+            currentPlayer.position = (currentPlayer.position + 1) % 24;
+            
+            if (currentPlayer.position === 0 && oldPos === 23) {
+                currentPlayer.money += 200000;
+                alert(`🎉 [${currentPlayer.name}] 시작점을 통과하여 월급 20만 원을 받았습니다.`);
+                updateUI();
+            }
+
+            updatePieces();
+
+            const activePiece = document.getElementById(`player-piece-${currentPlayer.id}`);
+            if(activePiece) {
+                activePiece.classList.add('moving');
+                setTimeout(() => activePiece.classList.remove('moving'), 150);
+            }
+
+            currentStep++;
+
+            if (currentStep >= steps) {
+                clearInterval(moveInterval);
+                setTimeout(() => {
+                    handleTileEvent(currentPlayer, steps);
+                }, 200);
+            }
+        }, 300);
+    }
+
+    function handleTileEvent(currentPlayer, totalDice) {
+        const currentIdx = currentPlayer.position;
+        const currentCell = boardData[currentIdx];
+        const otherPlayer = players[turn === 0 ? 1 : 0];
+        const cellEl = document.getElementById(`cell-block-${currentIdx}`);
+
+        alert(`[${currentCell.name}] 칸에 도착했습니다.`);
+
+        if (currentCell.isSpecial) {
+            if (currentCell.name === "황금열쇠") {
+                currentPlayer.money -= 50000;
+                alert("💸 황금열쇠: 복지기금 기부! 5만 원을 납부합니다.");
+            }
+        } 
+        else {
+            // 1. 주인이 없는 땅 -> 구매 의사 질문
+            if (currentCell.owner === null) {
+                if (currentPlayer.money >= currentCell.cost) {
+                    const buy = confirm(`🏙️ [${currentCell.name}]은(는) 주인이 없습니다.\n구매 비용: ${currentCell.cost.toLocaleString()}원\n구매하시겠습니까?`);
+                    
+                    if (buy) {
+                        currentPlayer.money -= currentCell.cost;
+                        currentCell.owner = currentPlayer.id; 
+                        
+                        cellEl.classList.add(`owner-p${currentPlayer.id}`);
+                        updateCellText(currentIdx);
+                        alert(`🎉 [${currentCell.name}]을(를) 구매했습니다!`);
+                    } else {
+                        alert("구매를 포기했습니다.");
+                    }
+                } else {
+                    alert("잔액이 부족하여 이 땅을 구매할 수 없습니다.");
+                }
+            } 
+            // 2. 내 땅에 다시 도착했을 때 -> 업그레이드
+            else if (currentCell.owner === currentPlayer.id) {
+                currentPlayer.money += 200000; 
+                currentCell.rent *= 2;        
+                
+                updateCellText(currentIdx);
+                alert(`🏰 자신의 땅 [${currentCell.name}]에 재방문했습니다!\n💰 자산 보너스 +200,000원 증가!\n📈 이 지역 통행료가 2배로 폭등합니다!`);
+            } 
+            // 3. 📌 [수정 및 추가] 상대방 땅에 도착했을 때 -> 통행료 지불 후 인수 여부 확인
+            else {
+                // 기본 통행료 먼저 지불
+                alert(`⚠️ [${currentCell.name}]은(는) 플레이어 ${currentCell.owner}의 땅입니다!\n먼저 통행료 ${currentCell.rent.toLocaleString()}원을 지불합니다.`);
+                currentPlayer.money -= currentCell.rent;
+                otherPlayer.money += currentCell.rent;
+
+                // 통행료 지불 후 아직 파산하지 않았다면 '인수' 기회 제공
+                if (currentPlayer.money >= 0) {
+                    const takeOverCost = currentCell.rent * 2; // 인수 비용은 통행료의 2배
+
+                    if (currentPlayer.money >= takeOverCost) {
+                        const buyOther = confirm(`🔥 상대방의 영토를 인수하시겠습니까?\n인수 비용(통행료의 2배): ${takeOverCost.toLocaleString()}원\n\n확인을 누르면 소유주가 변경되고 보드판 색상이 바뀝니다.`);
+                        
+                        if (buyOther) {
+                            currentPlayer.money -= takeOverCost; // 내 돈 추가 차감
+                            // (선택 규칙) 인수금을 상대방에게 줄지 여부. 여기선 내 지갑에서만 마이너스 처리합니다.
+                            
+                            // 원래 주인의 스타일 클래스 제거 후 새로운 주인의 스타일 부여
+                            cellEl.classList.remove(`owner-p${currentCell.owner}`);
+                            currentCell.owner = currentPlayer.id; // 소유권 변경
+                            cellEl.classList.add(`owner-p${currentPlayer.id}`);  // 색상 변경
+                            
+                            updateCellText(currentIdx);
+                            alert(`🦅 강력한 자금력으로 [${currentCell.name}]을(를) 인수했습니다! 이제 내 땅입니다.`);
+                        } else {
+                            alert("인수를 포기했습니다.");
+                        }
+                    } else {
+                        alert(`인수 비용(${takeOverCost.toLocaleString()}원)이 부족하여 인수를 진행할 수 없습니다.`);
+                    }
+                }
+            }
+        }
+
+        // 승패 확인 (돈이 0 미만이 된 플레이어가 있는지 체크)
+        if (currentPlayer.money < 0 || otherPlayer.money < 0) {
+            checkGameOver();
+            return;
+        }
+
+        // 다음 턴 교대 및 UI 업데이트
+        turn = turn === 0 ? 1 : 0;
+        updateUI();
+        
+        document.getElementById('dice-btn').disabled = false;
+        isGameProcessing = false;
+    }
+
+    function updateCellText(idx) {
+        const cell = boardData[idx];
+        document.getElementById(`price-text-${idx}`).innerHTML = `👑 소유: 플레이어 ${cell.owner}<br>⚠️ 통행료: ${(cell.rent / 10000).toLocaleString()}만`;
+    }
+
+    function checkGameOver() {
+        isGameOver = true;
+        document.getElementById('dice-btn').disabled = true; 
+        
+        let winner = null;
+        if(players[0].money < 0) winner = players[1];
+        if(players[1].money < 0) winner = players[0];
+
+        document.getElementById('msg').innerHTML = `<span style="font-size: 1.4rem; color: #2ecc71;">🏆 게임 종료! 승리자: ${winner.name} 🏆</span>`;
+        
+        alert(`🔔 [GAME OVER] 🔔\n\n한 플레이어가 자산을 모두 잃고 파산했습니다.\n\n✨ 축하합니다! 최종 승자는 [ ${winner.name} ] 입니다! 🎉🥳👏`);
+        updateUI();
+    }
+
+    createBoard();
+    updatePieces();
+    updateUI();
+</script>
+</body>
+</html>
