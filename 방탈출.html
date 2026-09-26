@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>방 탈출 퀴즈 게임</title>
+
+<style>
+
+body{
+  margin:0;
+  background:#1e1e1e;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  overflow:hidden;
+  font-family:sans-serif;
+}
+
+#game-room{
+  position:relative;
+  width:800px;
+  height:600px;
+  overflow:hidden;
+  border:10px solid #6b4f2a;
+  background:#d9c29c;
+}
+
+/* 바닥 */
+#floor{
+  position:absolute;
+  bottom:0;
+  width:100%;
+  height:160px;
+  background:#b68c5a;
+}
+
+/* 문 */
+#door{
+  position:absolute;
+  top:120px;
+  left:350px;
+  width:100px;
+  height:180px;
+  background:#5b3a1e;
+  border:4px solid #3d2613;
+  transform-origin:left center;
+  transition:transform 1s;
+  z-index:50;
+}
+
+#door::after{
+  content:"";
+  position:absolute;
+  right:10px;
+  top:85px;
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  background:gold;
+}
+
+#door.open{
+  transform:perspective(600px) rotateY(-70deg);
+}
+
+/* 플레이어 */
+#player{
+  position:absolute;
+  width:40px;
+  height:60px;
+  left:380px;
+  top:500px;
+  z-index:100;
+}
+
+.head{
+  width:26px;
+  height:26px;
+  border-radius:50%;
+  background:#ffd6a5;
+  margin:auto;
+}
+
+.body{
+  width:32px;
+  height:34px;
+  background:#3478f6;
+  margin:auto;
+  border-radius:6px;
+  position:relative;
+}
+
+.body::before,
+.body::after{
+  content:"";
+  position:absolute;
+  bottom:-16px;
+  width:8px;
+  height:16px;
+  background:#222;
+}
+
+.body::before{
+  left:6px;
+}
+
+.body::after{
+  right:6px;
+}
+
+/* 가구 */
+.furniture{
+  position:absolute;
+  box-sizing:border-box;
+}
+
+/* 안내 */
+#info{
+  position:absolute;
+  left:10px;
+  bottom:10px;
+  background:rgba(0,0,0,0.7);
+  color:white;
+  padding:8px 12px;
+  border-radius:6px;
+  z-index:200;
+}
+
+/* 점수 */
+#score{
+  position:absolute;
+  top:10px;
+  left:10px;
+  background:white;
+  padding:8px 12px;
+  border-radius:6px;
+  z-index:200;
+  font-weight:bold;
+}
+
+/* 방 제목 */
+#roomTitle{
+  position:absolute;
+  top:10px;
+  right:10px;
+  background:#222;
+  color:white;
+  padding:8px 12px;
+  border-radius:6px;
+  z-index:200;
+}
+
+/* 퀴즈 */
+#quizBox{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%, -50%);
+  width:420px;
+  background:white;
+  border:5px solid #333;
+  border-radius:10px;
+  padding:20px;
+  z-index:300;
+  display:none;
+}
+
+#quizQuestion{
+  font-size:22px;
+  margin-bottom:15px;
+  font-weight:bold;
+}
+
+.choiceBtn{
+  width:100%;
+  padding:10px;
+  margin:6px 0;
+  font-size:16px;
+  cursor:pointer;
+}
+
+#result{
+  margin-top:10px;
+  font-size:18px;
+  font-weight:bold;
+}
+
+/* 엔딩 점프 */
+@keyframes jump{
+
+  0%   { transform:translateY(0); }
+  50%  { transform:translateY(-20px); }
+  100% { transform:translateY(0); }
+
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="game-room">
+
+  <div id="floor"></div>
+
+  <div id="door"></div>
+
+  <!-- 플레이어 -->
+  <div id="player">
+    <div class="head"></div>
+    <div class="body"></div>
+  </div>
+
+  <!-- 안내 -->
+  <div id="info">
+    방향키로 움직이세요
+  </div>
+
+  <!-- 점수 -->
+  <div id="score">
+    0 / 5
+  </div>
+
+  <!-- 방 이름 -->
+  <div id="roomTitle">
+    1번 방 : 국사
+  </div>
+
+  <!-- 퀴즈 -->
+  <div id="quizBox">
+
+    <div id="quizQuestion"></div>
+
+    <div id="choices"></div>
+
+    <div id="result"></div>
+
+  </div>
+
+</div>
+
+<script>
+
+// ==============================
+// 방 데이터
+// ==============================
+
+const rooms = [
+
+  // ==========================
+  // 1번 방 - 국사
+  // ==========================
+
+  {
+    title:"1번 방 : 국사",
+    background:"#d9c29c",
+
+    furniture:[
+
+      {
+        style:"top:40px; left:40px; width:130px; height:80px; background:#222; border:6px solid #555;"
+      },
+
+      {
+        style:"top:330px; left:40px; width:140px; height:70px; background:#7a4f2a;"
+      },
+
+      {
+        style:"top:320px; right:30px; width:190px; height:90px; background:#6fa8dc;"
+      },
+
+      {
+        style:"bottom:110px; left:250px; width:160px; height:70px; background:#8e3b46;"
+      },
+
+      {
+        style:"top:180px; left:540px; width:120px; height:80px; background:#9c6b3f; border-radius:50%;"
+      }
+
+    ],
+
+    quiz:[
+
+      {
+        question:"한글을 만든 왕은 누구일까요?",
+        choices:["세종대왕","이순신","정조","광개토대왕"],
+        answer:"세종대왕"
+      },
+
+      {
+        question:"거북선을 만든 장군은?",
+        choices:["강감찬","이순신","을지문덕","장보고"],
+        answer:"이순신"
+      },
+
+      {
+        question:"고조선을 세운 사람은?",
+        choices:["주몽","단군왕검","김수로왕","박혁거세"],
+        answer:"단군왕검"
+      },
+
+      {
+        question:"삼국시대 나라가 아닌 것은?",
+        choices:["신라","백제","고구려","조선"],
+        answer:"조선"
+      },
+
+      {
+        question:"3·1 운동이 일어난 해는?",
+        choices:["1919년","1945년","1592년","1392년"],
+        answer:"1919년"
+      }
+
+    ]
+  },
+
+  // ==========================
+  // 2번 방 - 수학
+  // ==========================
+
+  {
+    title:"2번 방 : 수학",
+    background:"#cce7ff",
+
+    furniture:[
+
+      {
+        style:"top:60px; left:60px; width:100px; height:100px; background:#ff6666;"
+      },
+
+      {
+        style:"top:320px; left:80px; width:140px; height:70px; background:#66aa66;"
+      },
+
+      {
+        style:"top:160px; right:70px; width:120px; height:120px; background:#ffaa00;"
+      },
+
+      {
+        style:"bottom:120px; left:280px; width:160px; height:80px; background:#9966cc;"
+      },
+
+      {
+        style:"top:80px; left:330px; width:150px; height:60px; background:#444;"
+      }
+
+    ],
+
+    quiz:[
+
+      {
+        question:"8 + 5 = ?",
+        choices:["11","12","13","14"],
+        answer:"13"
+      },
+
+      {
+        question:"15 - 7 = ?",
+        choices:["6","7","8","9"],
+        answer:"8"
+      },
+
+      {
+        question:"6 × 4 = ?",
+        choices:["20","24","28","18"],
+        answer:"24"
+      },
+
+      {
+        question:"20 ÷ 5 = ?",
+        choices:["2","3","4","5"],
+        answer:"4"
+      },
+
+      {
+        question:"9 + 9 = ?",
+        choices:["16","17","18","19"],
+        answer:"18"
+      }
+
+    ]
+  }
+
+];
+
+// ==============================
+// 요소
+// ==============================
+
+const room = document.getElementById("game-room");
+
+const player = document.getElementById("player");
+
+const info = document.getElementById("info");
+
+const scoreBox = document.getElementById("score");
+
+const roomTitle = document.getElementById("roomTitle");
+
+const door = document.getElementById("door");
+
+const quizBox = document.getElementById("quizBox");
+
+const quizQuestion = document.getElementById("quizQuestion");
+
+const choicesDiv = document.getElementById("choices");
+
+const resultDiv = document.getElementById("result");
+
+// ==============================
+// 상태
+// ==============================
+
+let currentRoom = 0;
+
+let solvedCount = 0;
+
+let solvedQuiz = [];
+
+let currentFurniture = null;
+
+let quizOpen = false;
+
+let doorOpen = false;
+
+// ==============================
+// 플레이어 위치
+// ==============================
+
+let x = 380;
+
+let y = 500;
+
+const speed = 4;
+
+// ==============================
+// 키 상태
+// ==============================
+
+const keys = {
+
+  ArrowUp:false,
+  ArrowDown:false,
+  ArrowLeft:false,
+  ArrowRight:false
+
+};
+
+// ==============================
+// 방 생성
+// ==============================
+
+function loadRoom(index){
+
+  // 기존 가구 제거
+  document.querySelectorAll(".furniture")
+    .forEach(el => el.remove());
+
+  const data = rooms[index];
+
+  room.style.background = data.background;
+
+  roomTitle.textContent = data.title;
+
+  scoreBox.textContent = "0 / 5";
+
+  solvedCount = 0;
+
+  solvedQuiz = [];
+
+  doorOpen = false;
+
+  door.classList.remove("open");
+
+  // 가구 생성
+  data.furniture.forEach((item, idx)=>{
+
+    const div = document.createElement("div");
+
+    div.className = "furniture";
+
+    div.style = item.style;
+
+    div.dataset.quiz = idx;
+
+    room.appendChild(div);
+
+  });
+
+}
+
+// ==============================
+// 충돌 판정
+// ==============================
+
+function isColliding(a,b){
+
+  return !(
+
+    a.right < b.left ||
+    a.left > b.right ||
+    a.bottom < b.top ||
+    a.top > b.bottom
+
+  );
+}
+
+// ==============================
+// 퀴즈 표시
+// ==============================
+
+function showQuiz(index){
+
+  quizOpen = true;
+
+  const quiz = rooms[currentRoom].quiz[index];
+
+  quizQuestion.textContent = quiz.question;
+
+  choicesDiv.innerHTML = "";
+
+  resultDiv.textContent = "";
+
+  quiz.choices.forEach(choice=>{
+
+    const btn = document.createElement("button");
+
+    btn.className = "choiceBtn";
+
+    btn.textContent = choice;
+
+    btn.onclick = ()=>{
+
+      // 정답
+      if(choice === quiz.answer){
+
+        resultDiv.textContent = "정답입니다!";
+
+        resultDiv.style.color = "green";
+
+        if(!solvedQuiz.includes(index)){
+
+          solvedQuiz.push(index);
+
+          solvedCount++;
+
+          scoreBox.textContent =
+            `${solvedCount} / 5`;
+        }
+
+        // 문 열기
+        if(solvedCount === 5){
+
+          setTimeout(()=>{
+
+            door.classList.add("open");
+
+            doorOpen = true;
+
+            info.textContent =
+              "문이 열렸습니다!";
+
+          }, 500);
+
+        }
+
+      }else{
+
+        resultDiv.textContent = "틀렸습니다!";
+
+        resultDiv.style.color = "red";
+      }
+
+      // 퀴즈 닫기
+      setTimeout(()=>{
+
+        quizBox.style.display = "none";
+
+        quizOpen = false;
+
+      }, 1000);
+
+    };
+
+    choicesDiv.appendChild(btn);
+
+  });
+
+  quizBox.style.display = "block";
+}
+
+// ==============================
+// 엔딩
+// ==============================
+
+function showEnding(){
+
+  room.innerHTML = `
+
+    <div style="
+      width:100%;
+      height:100%;
+      position:relative;
+      overflow:hidden;
+      background:
+      linear-gradient(
+        #87ceeb 0%,
+        #87ceeb 65%,
+        #4caf50 65%,
+        #4caf50 100%
+      );
+    ">
+
+      <!-- 태양 -->
+      <div style="
+        position:absolute;
+        top:50px;
+        right:80px;
+        width:100px;
+        height:100px;
+        background:yellow;
+        border-radius:50%;
+        box-shadow:0 0 50px yellow;
+      "></div>
+
+      <!-- 집 -->
+      <div style="
+        position:absolute;
+        left:80px;
+        bottom:120px;
+        width:180px;
+        height:160px;
+        background:#d2691e;
+      ">
+
+        <div style="
+          position:absolute;
+          top:-70px;
+          left:-20px;
+          width:0;
+          height:0;
+          border-left:110px solid transparent;
+          border-right:110px solid transparent;
+          border-bottom:70px solid #8b0000;
+        "></div>
+
+      </div>
+
+      <!-- 플레이어 -->
+      <div style="
+        position:absolute;
+        left:360px;
+        bottom:120px;
+        width:60px;
+        height:100px;
+        animation:jump 1s infinite;
+      ">
+
+        <div style="
+          width:40px;
+          height:40px;
+          border-radius:50%;
+          background:#ffd6a5;
+          margin:auto;
+        "></div>
+
+        <div style="
+          width:50px;
+          height:50px;
+          background:#3478f6;
+          margin:auto;
+          border-radius:10px;
+        "></div>
+
+      </div>
+
+      <!-- 성공 메시지 -->
+      <div style="
+        position:absolute;
+        top:180px;
+        width:100%;
+        text-align:center;
+        font-size:48px;
+        font-weight:bold;
+        color:white;
+        text-shadow:3px 3px 5px black;
+      ">
+        🎉 방 탈출 성공! 🎉
+      </div>
+
+      <div style="
+        position:absolute;
+        top:260px;
+        width:100%;
+        text-align:center;
+        font-size:28px;
+        color:white;
+        text-shadow:2px 2px 4px black;
+      ">
+        모든 문제를 해결했습니다!
+      </div>
+
+    </div>
+
+  `;
+}
+
+// ==============================
+// 키 입력
+// ==============================
+
+window.addEventListener("keydown", (e)=>{
+
+  if(keys.hasOwnProperty(e.key)){
+
+    keys[e.key] = true;
+  }
+
+  // 스페이스바
+  if(e.code === "Space"){
+
+    if(currentFurniture && !quizOpen){
+
+      const index =
+        Number(currentFurniture.dataset.quiz);
+
+      if(!solvedQuiz.includes(index)){
+
+        showQuiz(index);
+
+      }else{
+
+        info.textContent =
+          "이미 해결한 문제입니다";
+      }
+    }
+  }
+
+});
+
+window.addEventListener("keyup", (e)=>{
+
+  if(keys.hasOwnProperty(e.key)){
+
+    keys[e.key] = false;
+  }
+
+});
+
+// ==============================
+// 게임 루프
+// ==============================
+
+function gameLoop(){
+
+  if(!quizOpen){
+
+    // 이동
+    if(keys.ArrowUp) y -= speed;
+
+    if(keys.ArrowDown) y += speed;
+
+    if(keys.ArrowLeft) x -= speed;
+
+    if(keys.ArrowRight) x += speed;
+
+    // 범위 제한
+    x = Math.max(0, Math.min(760, x));
+
+    y = Math.max(0, Math.min(540, y));
+
+    player.style.left = x + "px";
+
+    player.style.top = y + "px";
+
+    const playerRect =
+      player.getBoundingClientRect();
+
+    currentFurniture = null;
+
+    // 가구 충돌
+    document.querySelectorAll(".furniture")
+      .forEach(furniture=>{
+
+      const rect =
+        furniture.getBoundingClientRect();
+
+      if(isColliding(playerRect, rect)){
+
+        currentFurniture = furniture;
+      }
+
+    });
+
+    // 문 충돌
+    const doorRect =
+      door.getBoundingClientRect();
+
+    if(
+      doorOpen &&
+      isColliding(playerRect, doorRect)
+    ){
+
+      // 다음 방 이동
+      if(currentRoom < rooms.length - 1){
+
+        currentRoom++;
+
+        loadRoom(currentRoom);
+
+        x = 380;
+        y = 500;
+
+        info.textContent =
+          "다음 방으로 이동했습니다!";
+
+      }else{
+
+        // 게임 엔딩
+        showEnding();
+
+        return;
+      }
+    }
+
+    // 안내
+    if(currentFurniture){
+
+      info.textContent =
+        "스페이스바로 조사하기";
+
+    }
+
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+// ==============================
+// 시작
+// ==============================
+
+loadRoom(0);
+
+gameLoop();
+
+</script>
+
+</body>
+</html>
