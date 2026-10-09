@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <!-- 운영 시 다른 Nominatim 호환 서버로 교체할 수 있습니다. -->
+    <meta name="geocoding-endpoint" content="https://nominatim.openstreetmap.org/reverse">
+    <title>반반마켓 - 1인 가구 식재료 소분 & 나눔</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Noto Sans KR & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti for Celebration Screen -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            accent: '#ff6b6b',
+                            warm: '#fffbeb',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Noto Sans KR', 'sans-serif'],
+                        outfit: ['Outfit', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #0f172a; /* Slate 900 base background for high contrast app shell */
+            color: #f8fafc;
+        }
+        /* Custom scrollbar for clean UI */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(51, 65, 85, 0.8);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(71, 85, 105, 1);
+        }
+        
+        /* Mascot floating animation */
+        @keyframes mascotBounce {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(2deg); }
+        }
+        .mascot-anim {
+            animation: mascotBounce 3s ease-in-out infinite;
+        }
+
+        /* Heartbeat glow */
+        @keyframes pulseGlow {
+            0%, 100% { filter: drop-shadow(0 0 15px rgba(74, 222, 128, 0.4)); }
+            50% { filter: drop-shadow(0 0 25px rgba(74, 222, 128, 0.8)); }
+        }
+        .glow-effect {
+            animation: pulseGlow 2.5s infinite;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-0 md:p-4 bg-slate-950 text-slate-100 selection:bg-brand-500 selection:text-white">
+
+    <!-- Mobile App Container Shell -->
+    <div id="appContainer" class="w-full max-w-md h-[100vh] md:h-[90vh] md:max-h-[850px] bg-slate-900 md:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative border border-slate-800">
+        
+        <!-- ========================================================================= -->
+        <!-- STEP 1: START / SPLASH SCREEN -->
+        <!-- ========================================================================= -->
+        <div id="step1Start" class="flex-1 flex flex-col justify-between p-6 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 relative z-10 transition-all duration-500">
+            <!-- Header decorative badge -->
+            <div class="flex justify-between items-center pt-2">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700 text-xs font-medium text-brand-300">
+                    <i class="fa-solid font-bold fa-leaf text-brand-400"></i> 1인 가구 맞춤 나눔
+                </span>
+                <span class="text-xs text-slate-400 font-mono">v1.2 Yangcheon Edition</span>
+            </div>
+
+            <!-- Cute Mascot & Intro -->
+            <div class="flex flex-col items-center text-center my-auto py-4">
+                <!-- SVG Mascot Character "반반이" -->
+                <div class="relative w-40 h-40 mb-4 flex items-center justify-center glow-effect">
+                    <svg viewBox="0 0 200 200" class="w-full h-full mascot-anim">
+                        <!-- Background Glow Aura -->
+                        <circle cx="100" cy="110" r="75" fill="#16a34a" opacity="0.15" />
+                        
+                        <!-- Green Onion / Split Veggie Mascot Body -->
+                        <path d="M50,110 C50,60 70,30 100,30 C130,30 150,60 150,110 C150,150 130,175 100,175 C70,175 50,150 50,110 Z" fill="#22c55e" />
+                        <!-- Half split line effect -->
+                        <path d="M100,30 C100,30 100,100 100,175" stroke="#fef08a" stroke-width="4" stroke-dasharray="6 4" opacity="0.8"/>
+                        
+                        <!-- Left half light green shade -->
+                        <path d="M50,110 C50,60 70,30 100,30 L100,175 C70,175 50,150 50,110 Z" fill="#4ade80" opacity="0.25"/>
+
+                        <!-- Cute Leaf Sprout Top -->
+                        <path d="M90,32 C80,10 60,15 65,30 Z" fill="#15803d" />
+                        <path d="M110,32 C120,10 140,15 135,30 Z" fill="#16a34a" />
+                        <path d="M100,30 C100,5 115,5 105,25 Z" fill="#86efac" />
+
+                        <!-- Sparkles -->
+                        <circle cx="40" cy="50" r="3" fill="#fef08a" class="animate-ping"/>
+                        <circle cx="160" cy="60" r="4" fill="#86efac" />
+
+                        <!-- Cheeks -->
+                        <circle cx="75" cy="115" r="8" fill="#ff8787" opacity="0.7"/>
+                        <circle cx="125" cy="115" r="8" fill="#ff8787" opacity="0.7"/>
+
+                        <!-- Cute Big Eyes -->
+                        <circle cx="80" cy="100" r="7" fill="#0f172a" />
+                        <circle cx="82" cy="98" r="2.5" fill="#ffffff" />
+                        
+                        <circle cx="120" cy="100" r="7" fill="#0f172a" />
+                        <circle cx="122" cy="98" r="2.5" fill="#ffffff" />
+
+                        <!-- Cute W-shaped Mouth -->
+                        <path d="M92,112 Q100,122 108,112" fill="none" stroke="#0f172a" stroke-width="3.5" stroke-linecap="round" />
+
+                        <!-- Little Hugging Arms -->
+                        <path d="M48,115 Q35,125 48,135" fill="none" stroke="#16a34a" stroke-width="5" stroke-linecap="round" />
+                        <path d="M152,115 Q165,125 152,135" fill="none" stroke="#16a34a" stroke-width="5" stroke-linecap="round" />
+                    </svg>
+
+                    <!-- Hello Bubble -->
+                    <div class="absolute -top-2 right-0 bg-brand-500 text-slate-950 font-extrabold text-xs px-3 py-1.5 rounded-2xl rounded-bl-none shadow-lg animate-bounce">
+                        반가워요! 🥦
+                    </div>
+                </div>
+
+                <!-- App Title -->
+                <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2 font-outfit">
+                    반반마켓 <span class="text-brand-400 font-sans text-2xl font-bold">BanBan</span>
+                </h1>
+                <p class="text-slate-300 text-sm md:text-base max-w-xs leading-relaxed font-medium">
+                    대용량 식재료, 남겨서 버리지 마세요.<br/>
+                    <span class="text-brand-300 font-semibold">이웃과 반으로 나눠 딱 알뜰하게!</span>
+                </p>
+            </div>
+
+            <!-- Start Action Buttons -->
+            <div class="space-y-2.5 pb-2">
+                <!-- GPS Fetch Button (New!) -->
+                <button onclick="tryFetchGPS()" id="mainGpsBtn" class="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-400 hover:to-brand-500 text-slate-950 font-extrabold text-base shadow-lg shadow-brand-500/25 flex items-center justify-center gap-2.5 transform active:scale-95 transition-all">
+                    <i class="fa-solid fa-location-crosshairs text-lg"></i>
+                    <span>내 동네 인증하고 시작하기 (GPS)</span>
+                </button>
+
+                <!-- Direct Yangcheon Quick Start (Manual Fallback) -->
+                <button onclick="openGpsModal()" class="w-full py-3 px-6 rounded-2xl bg-slate-800/90 hover:bg-slate-800 text-slate-200 font-semibold text-sm flex items-center justify-center gap-2 border border-slate-700/80 transition-all">
+                    <i class="fa-solid fa-magnifying-glass text-brand-400 text-xs"></i>
+                    <span>GPS 미작동 시 수동으로 동네 검색</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- STEP 2: MAIN SCREEN (App Core) -->
+        <!-- ========================================================================= -->
+        <div id="step2Main" class="hidden flex-1 flex-col h-full bg-slate-950 relative overflow-hidden">
+            
+            <!-- Main Top Header -->
+            <header class="p-3.5 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-30 flex items-center justify-between gap-2">
+                <!-- Neighborhood Selector Dropdown -->
+                <div class="relative">
+                    <button onclick="openGpsModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 text-slate-100 font-bold text-xs transition">
+                        <i class="fa-solid fa-location-dot text-brand-400 text-xs"></i>
+                        <span id="currentLocDisplay" class="truncate max-w-[110px]">양천구 목동</span>
+                        <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 ml-0.5"></i>
+                    </button>
+                </div>
+
+                <!-- Search Input -->
+                <div class="flex-1 max-w-[170px] relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="searchInput" oninput="renderPosts()" placeholder="대파, 샤인머스캣, 계란..." class="w-full pl-8 pr-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition"/>
+                </div>
+
+                <!-- Mascot Mini Quick Stats & Notification -->
+                <div class="flex items-center gap-2">
+                    <button onclick="showToast('🔔 오목교역 근처 대파 소분 알림이 있습니다!')" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 relative">
+                        <i class="fa-solid fa-bell text-sm"></i>
+                        <span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-brand-400 animate-ping"></span>
+                        <span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-brand-400"></span>
+                    </button>
+                    <!-- Mascot Avatar button -->
+                    <div class="w-8 h-8 rounded-full bg-brand-500/20 border border-brand-400/50 flex items-center justify-center p-0.5 cursor-pointer" onclick="showMascotTip()">
+                        <svg viewBox="0 0 200 200" class="w-full h-full">
+                            <circle cx="100" cy="110" r="75" fill="#22c55e" />
+                            <circle cx="80" cy="100" r="8" fill="#0f172a" />
+                            <circle cx="120" cy="100" r="8" fill="#0f172a" />
+                            <path d="M92,112 Q100,122 108,112" fill="none" stroke="#0f172a" stroke-width="4" />
+                        </svg>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Category Filter Tabs -->
+            <div class="px-4 py-2.5 bg-slate-900/50 border-b border-slate-800/80 overflow-x-auto whitespace-nowrap scrollbar-none flex gap-2 text-xs">
+                <button onclick="setCategory('ALL')" class="cat-btn active px-3 py-1.5 rounded-xl bg-brand-500 text-slate-950 font-bold shadow-sm transition">
+                    전체 보기
+                </button>
+                <button onclick="setCategory('VEGE')" class="cat-btn px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition">
+                    🥦 신선야채
+                </button>
+                <button onclick="setCategory('FRUIT')" class="cat-btn px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition">
+                    🍎 과일
+                </button>
+                <button onclick="setCategory('MEAT')" class="cat-btn px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition">
+                    🥩 육류/계란
+                </button>
+                <button onclick="setCategory('SAUCE')" class="cat-btn px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition">
+                    🧂 가공/양념
+                </button>
+            </div>
+
+            <!-- Banner Info Card -->
+            <div class="px-4 pt-3 pb-1">
+                <div class="bg-gradient-to-r from-emerald-950/80 to-slate-900 border border-brand-500/30 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-md">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-brand-500/20 border border-brand-400/40 flex items-center justify-center text-brand-400 font-bold text-lg shrink-0">
+                            🛒
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-brand-300"><span id="bannerLocText">양천구</span> 마트 함께갈 이웃 모집!</p>
+                            <p class="text-[11px] text-slate-400">대용량 특가 상품 산 후 즉시 소분해요.</p>
+                        </div>
+                    </div>
+                    <button onclick="openNewPostModal()" class="text-xs bg-brand-500 hover:bg-brand-400 text-slate-950 font-extrabold px-3 py-1.5 rounded-xl shrink-0 transition">
+                        + 글쓰기
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Post Feed Scrollable Container -->
+            <div id="postFeed" class="flex-1 overflow-y-auto p-4 space-y-3.5 pb-24">
+                <!-- Posts populated dynamically by JavaScript -->
+            </div>
+
+            <!-- Bottom Floating Action Button (Create Post) -->
+            <div class="absolute bottom-6 right-6 z-20">
+                <button onclick="openNewPostModal()" class="w-14 h-14 rounded-full bg-gradient-to-r from-brand-500 to-brand-400 text-slate-950 font-black text-xl shadow-xl shadow-brand-500/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-all group">
+                    <i class="fa-solid fa-plus transition-transform group-hover:rotate-90"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- STEP 3: RESULT / ENDING SCREEN (Trade Completion & Rating) -->
+        <!-- ========================================================================= -->
+        <div id="step3Result" class="hidden flex-1 flex-col h-full bg-slate-950 relative p-6 overflow-y-auto z-40">
+            <!-- Top Confetti & Trophy Header -->
+            <div class="text-center py-4">
+                <div class="w-20 h-20 mx-auto mb-3 rounded-full bg-brand-500/20 border-2 border-brand-400 flex items-center justify-center text-4xl animate-bounce shadow-lg shadow-brand-500/20">
+                    🎉
+                </div>
+                <h2 class="text-2xl font-black text-white mb-1">소분 거래 완료!</h2>
+                <p class="text-xs text-brand-300 font-medium">이웃과 함께 알뜰한 식탁을 만들었어요.</p>
+            </div>
+
+            <!-- Environmental & Money Savings Report Card -->
+            <div class="bg-slate-900 border border-brand-500/30 rounded-2xl p-4 my-3 space-y-3 shadow-xl">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <span class="text-xs font-bold text-slate-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-receipt text-brand-400"></i> 거래 품목
+                    </span>
+                    <span id="resultItemName" class="text-sm font-extrabold text-white">싱싱한 대파 한 단 (소분)</span>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3 pt-1">
+                    <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800 text-center">
+                        <p class="text-[11px] text-slate-400 mb-0.5">절약한 비용</p>
+                        <p id="resultSavedMoney" class="text-lg font-black text-brand-400">3,200 원</p>
+                    </div>
+                    <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800 text-center">
+                        <p class="text-[11px] text-slate-400 mb-0.5">절감한 식재료</p>
+                        <p id="resultSavedWeight" class="text-lg font-black text-emerald-300">약 450 g</p>
+                    </div>
+                </div>
+
+                <div class="bg-brand-950/40 rounded-xl p-2.5 border border-brand-800/40 flex items-center gap-2 text-xs text-brand-200">
+                    <i class="fa-solid fa-tree text-brand-400 text-base"></i>
+                    <span>탄소 배출 <strong class="text-white font-bold">1.2kg CO2</strong>를 방지했습니다! 🌿</span>
+                </div>
+            </div>
+
+            <!-- Etiquette & Neighbor Evaluation -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 my-2 space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                        <i class="fa-solid fa-user-check text-brand-400"></i> 이웃 신뢰도 평가
+                    </h3>
+                    <span class="text-[11px] text-brand-400 font-bold bg-brand-950 px-2 py-0.5 rounded-md border border-brand-800">
+                        신뢰 온도 +0.5°C
+                    </span>
+                </div>
+
+                <p class="text-xs text-slate-400">함께 거래한 <strong id="resultPartnerName" class="text-slate-200">초록이웃님</strong>은 어떠셨나요?</p>
+
+                <!-- Star Rating -->
+                <div class="flex justify-center gap-2 py-1 text-2xl text-amber-400" id="starContainer">
+                    <i class="fa-solid fa-star cursor-pointer hover:scale-110 transition" onclick="setRating(1)"></i>
+                    <i class="fa-solid fa-star cursor-pointer hover:scale-110 transition" onclick="setRating(2)"></i>
+                    <i class="fa-solid fa-star cursor-pointer hover:scale-110 transition" onclick="setRating(3)"></i>
+                    <i class="fa-solid fa-star cursor-pointer hover:scale-110 transition" onclick="setRating(4)"></i>
+                    <i class="fa-solid fa-star cursor-pointer hover:scale-110 transition" onclick="setRating(5)"></i>
+                </div>
+
+                <!-- Quick Feedback Badges -->
+                <div class="space-y-1.5 text-xs">
+                    <button onclick="toggleBadge(this)" class="badge-btn w-full text-left p-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-brand-500/50 text-slate-300 transition flex items-center justify-between">
+                        <span>⏰ 약속 시간 및 장소를 잘 지켰어요</span>
+                        <i class="fa-solid fa-check text-slate-600 check-icon"></i>
+                    </button>
+                    <button onclick="toggleBadge(this)" class="badge-btn w-full text-left p-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-brand-500/50 text-slate-300 transition flex items-center justify-between">
+                        <span>🥬 식재료 소분/위생 상태가 매우 훌륭해요</span>
+                        <i class="fa-solid fa-check text-slate-600 check-icon"></i>
+                    </button>
+                    <button onclick="toggleBadge(this)" class="badge-btn w-full text-left p-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-brand-500/50 text-slate-300 transition flex items-center justify-between">
+                        <span>😊 친절하고 빠른 답변을 해주셨어요</span>
+                        <i class="fa-solid fa-check text-slate-600 check-icon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Complete and Return Home Button -->
+            <div class="pt-2 pb-4 mt-auto">
+                <button onclick="finishEvaluation()" class="w-full py-3.5 px-4 rounded-2xl bg-brand-500 hover:bg-brand-400 text-slate-950 font-extrabold text-sm shadow-lg shadow-brand-500/20 transition transform active:scale-95">
+                    평가 완료 및 메인으로 돌아가기
+                </button>
+            </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- MODALS & OVERLAYS -->
+        <!-- ========================================================================= -->
+
+        <p class="text-[10px] text-slate-400 text-center mt-2">동네 주소: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" class="underline hover:text-brand-300">OpenStreetMap contributors</a> · <a href="https://operations.osmfoundation.org/policies/nominatim/" target="_blank" rel="noopener noreferrer" class="underline">Nominatim 이용 정책</a></p>
+        <!-- 1. GPS / MANUAL LOCATION AUTH MODAL -->
+        <div id="gpsModal" class="hidden absolute inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div class="w-full max-h-[92vh] bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl overflow-y-auto">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 class="font-extrabold text-slate-100 flex items-center gap-2 text-base">
+                        <i class="fa-solid fa-location-dot text-brand-400"></i> 동네 인증 설정
+                    </h3>
+                    <button onclick="closeGpsModal()" class="text-slate-400 hover:text-white p-1">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <!-- NEW: Actual GPS Fetch Area -->
+                <div class="bg-brand-950/20 border border-brand-500/30 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 text-center">
+                    <div class="w-12 h-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-400 text-xl shadow-inner relative">
+                        <i class="fa-solid fa-location-crosshairs z-10"></i>
+                        <div id="gpsPingAnim" class="hidden absolute inset-0 rounded-full bg-brand-500 opacity-20 animate-ping"></div>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-slate-200">현재 내 위치로 동네 찾기</p>
+                        <p class="text-[10px] text-slate-400 mt-1">기기의 GPS 권한을 허용해주세요.</p>
+                    </div>
+                    <button onclick="tryFetchGPSFromModal()" id="modalGpsBtn" class="w-full py-2.5 mt-1 rounded-xl bg-brand-500 hover:bg-brand-400 text-slate-950 font-bold text-xs transition-all flex justify-center items-center gap-1.5">
+                        <i class="fa-solid fa-satellite-dish"></i> GPS 위치 인증하기
+                    </button>
+                    <!-- Coordinate display for testing -->
+                    <p class="text-[10px] text-slate-400 text-center mt-2">동네 주소: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" class="underline hover:text-brand-300">OpenStreetMap contributors</a> · <a href="https://operations.osmfoundation.org/policies/nominatim/" target="_blank" rel="noopener noreferrer" class="underline">Nominatim 이용 정책</a></p>
+                    <p class="text-[10px] text-slate-400">GPS 실행 시 좌표를 주소 조회 서비스에 전송합니다. 주소가 다르면 수동으로 변경해주세요.</p>
+                    <p id="gpsResultText" class="text-[10px] text-brand-300 hidden font-mono break-all"></p>
+                </div>
+
+                <div class="relative flex py-1 items-center">
+                    <div class="flex-grow border-t border-slate-800"></div>
+                    <span class="flex-shrink-0 mx-4 text-slate-500 text-[10px] font-bold">또는 수동 검색</span>
+                    <div class="flex-grow border-t border-slate-800"></div>
+                </div>
+
+                <!-- Manual Neighborhood Search Bar -->
+                <div class="space-y-1.5">
+                    <label class="text-[11px] font-bold text-slate-300">동네 이름 직접 검색</label>
+                    <div class="flex gap-2">
+                        <input type="text" onkeydown="if(event.key === 'Enter') searchManualLoc()" id="manualLocInput" placeholder="동 또는 구 이름을 입력하세요..." class="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-brand-500"/>
+                        <button onclick="searchManualLoc()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs rounded-xl shrink-0 transition">
+                            검색
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Interactive Simulated Radar Scanner (Selected Status) -->
+                <div class="relative w-full h-16 bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden flex items-center justify-center mt-2">
+                    <div class="absolute w-20 h-20 rounded-full border border-brand-500/10 animate-ping"></div>
+                    <div class="text-center z-10 flex items-center gap-2">
+                        <i class="fa-solid fa-map-pin text-brand-400"></i>
+                        <p id="gpsStatusText" class="text-xs font-bold text-slate-200">선택 대기 중...</p>
+                    </div>
+                </div>
+
+                <!-- Presets: Yangcheon-gu Special Presets & Others -->
+                <div class="space-y-2 pt-2">
+                    <div class="flex justify-between items-center">
+                        <label class="text-[11px] font-bold text-brand-300 flex items-center gap-1">
+                            <i class="fa-solid fa-star text-xs"></i> [양천구] 인기 소분 지역
+                        </label>
+                    </div>
+
+                    <!-- Yangcheon Presets -->
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <button onclick="selectLocation('양천구 목동')" class="p-2.5 rounded-xl bg-brand-950/40 border border-brand-500/50 hover:bg-brand-900/50 text-left font-bold text-brand-300 flex items-center justify-between transition">
+                            <span>📍 양천구 목동</span>
+                        </button>
+                        <button onclick="selectLocation('양천구 신정동')" class="p-2.5 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 text-left font-medium text-slate-200 transition">
+                            📍 양천구 신정동
+                        </button>
+                        <button onclick="selectLocation('양천구 신월동')" class="p-2.5 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 text-left font-medium text-slate-200 transition">
+                            📍 양천구 신월동
+                        </button>
+                        <button onclick="selectLocation('양천구 오목교')" class="p-2.5 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 text-left font-medium text-slate-200 transition">
+                            📍 양천구 오목교
+                        </button>
+                    </div>
+                </div>
+
+                <button onclick="confirmGpsAuth()" class="w-full py-3.5 rounded-2xl bg-brand-500 hover:bg-brand-400 text-slate-950 font-extrabold text-sm shadow-md transition mt-4">
+                    이 위치로 동네 선택 완료하기
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. NEW POST FORM MODAL -->
+        <div id="newPostModal" class="hidden absolute inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-3">
+            <div class="w-full max-h-[90vh] bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl overflow-y-auto">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3 sticky top-0 bg-slate-900 z-10">
+                    <h3 class="font-extrabold text-slate-100 text-base flex items-center gap-2">
+                        <i class="fa-solid fa-pen-to-square text-brand-400"></i> 식재료 소분·공동구매 모집
+                    </h3>
+                    <button onclick="closeNewPostModal()" class="text-slate-400 hover:text-white p-1">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <!-- Form Fields -->
+                <form id="postForm" onsubmit="handleCreatePost(event)" class="space-y-3.5 text-xs">
+                    <!-- Title -->
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">식재료 명 / 모집 제목</label>
+                        <input type="text" id="formTitle" required placeholder="예: 목동 이마트 대파 한 단 반반 나누실 분!" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brand-500"/>
+                    </div>
+
+                    <!-- Category & Expiration Date -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-bold text-slate-300 mb-1">카테고리</label>
+                            <select id="formCategory" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-brand-500">
+                                <option value="VEGE">🥦 신선야채</option>
+                                <option value="FRUIT">🍎 과일</option>
+                                <option value="MEAT">🥩 육류/계란</option>
+                                <option value="SAUCE">🧂 가공/양념</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-300 mb-1">유통기한/소비기한</label>
+                            <input type="date" id="formExpDate" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-brand-500"/>
+                        </div>
+                    </div>
+
+                    <!-- Price and Split Count -->
+                    <div class="grid grid-cols-2 gap-2 bg-slate-950 p-3 rounded-2xl border border-slate-800">
+                        <div>
+                            <label class="block font-bold text-slate-300 mb-1">구매 총 금액(원)</label>
+                            <input type="number" id="formTotalPrice" oninput="calcSplitPrice()" placeholder="예: 3000" required class="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-brand-500"/>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-300 mb-1">모집 인원 (나눌 수)</label>
+                            <select id="formSplitCount" onchange="calcSplitPrice()" class="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-brand-500">
+                                <option value="2">2명 (1/2 반반)</option>
+                                <option value="3">3명 (1/3 소분)</option>
+                                <option value="4">4명 (1/4 소분)</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2 pt-1 flex justify-between items-center text-xs border-t border-slate-800/80">
+                            <span class="text-slate-400">1인당 부담 금액:</span>
+                            <span id="calculatedPriceText" class="font-extrabold text-brand-400 text-sm">0 원</span>
+                        </div>
+                    </div>
+
+                    <!-- Receipt Verification Upload Simulation -->
+                    <div class="bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <label class="font-bold text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-receipt text-brand-400"></i> 영수증 / 구매 내역 인증
+                            </label>
+                            <span class="text-[10px] bg-brand-950 text-brand-300 px-2 py-0.5 rounded border border-brand-800">안심 거래</span>
+                        </div>
+                        <div onclick="simulateReceiptUpload()" class="border-2 border-dashed border-slate-700 hover:border-brand-500/60 rounded-xl p-3 text-center cursor-pointer transition">
+                            <i id="receiptIcon" class="fa-solid fa-camera text-slate-400 text-lg mb-1"></i>
+                            <p id="receiptUploadText" class="text-slate-400 text-[11px]">클릭하여 영수증 사진을 첨부하세요 (신뢰도 업!)</p>
+                        </div>
+                    </div>
+
+                    <!-- Meeting Location -->
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">희망 거래 장소</label>
+                        <input type="text" id="formLocation" required placeholder="예: 오목교역 2번 출구 앞 / 목동 파리공원 입구" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brand-500"/>
+                    </div>
+
+                    <button type="submit" class="w-full py-3.5 rounded-2xl bg-brand-500 hover:bg-brand-400 text-slate-950 font-extrabold text-sm shadow-lg shadow-brand-500/20 transition">
+                        소분 모집글 등록하기
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 3. DETAIL & CHAT MODAL -->
+        <div id="detailChatModal" class="hidden absolute inset-0 bg-slate-950 z-50 flex flex-col">
+            <!-- Modal Header -->
+            <div class="p-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+                <button onclick="closeDetailChatModal()" class="text-slate-300 hover:text-white p-1">
+                    <i class="fa-solid fa-arrow-left text-base"></i>
+                </button>
+                <div class="text-center">
+                    <h4 id="chatHeaderTitle" class="font-extrabold text-xs text-slate-100 truncate max-w-[180px]">목동 대파 반반 소분 모임</h4>
+                    <span class="text-[10px] text-brand-400 font-medium">안심 이웃 채팅 중</span>
+                </div>
+                <button onclick="triggerCompleteTrade()" class="text-xs font-bold bg-brand-500 hover:bg-brand-400 text-slate-950 px-2.5 py-1.5 rounded-xl transition">
+                    거래 완료하기
+                </button>
+            </div>
+
+            <!-- Scrollable Content: Item Info Card + Chat Feed -->
+            <div class="flex-1 overflow-y-auto p-3 space-y-3">
+                <!-- Compact Product Summary Card -->
+                <div class="bg-slate-900 border border-slate-800 p-3 rounded-2xl flex items-center gap-3">
+                    <div id="chatItemEmoji" class="w-12 h-12 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center text-2xl shrink-0">
+                        🥦
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-1.5">
+                            <span id="chatItemPrice" class="text-sm font-extrabold text-brand-400">1,500원</span>
+                            <span id="chatItemExp" class="text-[10px] text-slate-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">유통기한 9/18</span>
+                        </div>
+                        <p id="chatItemLoc" class="text-xs text-slate-300 truncate mt-0.5"><i class="fa-solid fa-location-dot text-brand-400"></i> 오목교역 2번 출구</p>
+                    </div>
+                </div>
+
+                <!-- Chat Messages Feed -->
+                <div id="chatMessageContainer" class="space-y-2.5 text-xs pt-1">
+                    <!-- System Message -->
+                    <div class="text-center my-2">
+                        <span class="text-[10px] text-slate-400 bg-slate-900/80 px-3 py-1 rounded-full border border-slate-800">
+                            🔒 개인정보 보호를 위해 안전한 구역에서 약속을 잡아주세요.
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Input Area -->
+            <div class="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
+                <input type="text" id="chatInput" onkeypress="if(event.key==='Enter') sendChatMessage()" placeholder="메시지를 입력하세요..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-brand-500"/>
+                <button onclick="sendChatMessage()" class="w-9 h-9 rounded-xl bg-brand-500 text-slate-950 font-bold flex items-center justify-center hover:bg-brand-400 transition shrink-0">
+                    <i class="fa-solid fa-paper-plane text-xs"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Toast Notification Popover -->
+        <div id="toast" class="hidden absolute top-16 left-1/2 -translate-x-1/2 bg-slate-800 text-slate-100 text-xs px-4 py-2.5 rounded-2xl border border-brand-500/40 shadow-2xl z-50 flex items-center gap-2 transition-all">
+            <span id="toastMsg">알림 메시지</span>
+        </div>
+
+    </div>
+
+    <script>
+        // =========================================================================
+        // APP STATE MANAGEMENT & INITIAL DATA
+        // =========================================================================
+        let currentLoc = ""; // 시작 시 빈 값
+        let activeCategory = "ALL";
+        let uploadedReceipt = false;
+        let activePost = null;
+
+        // Yangcheon-gu Mock Posts Database
+        const yangcheonPosts = [
+            {
+                id: 101,
+                title: "목동 이마트 대파 한 단 반 나눠서 가져가실 분!",
+                category: "VEGE",
+                emoji: "🥦",
+                totalPrice: 3400,
+                splitPrice: 1700,
+                headcount: "1/2명 모집중",
+                expDate: "2026-09-18",
+                location: "오목교역 2번 출구 앞",
+                distance: "120m",
+                verified: true,
+                author: "목동주민1호",
+                temp: "38.1°C",
+                timeAgo: "3분 전"
+            },
+            {
+                id: 102,
+                title: "샤인머스캣 3송이 팩 중 1송이 나눠서 드실 분~",
+                category: "FRUIT",
+                emoji: "🍇",
+                totalPrice: 15900,
+                splitPrice: 5300,
+                headcount: "2/3명 모집중",
+                expDate: "2026-09-20",
+                location: "목동 파리공원 정문",
+                distance: "250m",
+                verified: true,
+                author: "양천알뜰러",
+                temp: "37.4°C",
+                timeAgo: "10분 전"
+            },
+            {
+                id: 103,
+                title: "신선 특란 30구 사서 15구만 딱 나눔합니다",
+                category: "MEAT",
+                emoji: "🥚",
+                totalPrice: 7800,
+                splitPrice: 3900,
+                headcount: "1/2명 모집중",
+                expDate: "2026-09-26",
+                location: "신정네거리역 1번 출구",
+                distance: "380m",
+                verified: true,
+                author: "신정동자취러",
+                temp: "36.9°C",
+                timeAgo: "22분 전"
+            }
+        ];
+
+        // Default General Sample Posts (다른 지역 검색 시)
+        const generalPosts = [
+            {
+                id: 1,
+                title: "대파 한 단 샀는데 반 나눠서 가져가실 분!",
+                category: "VEGE",
+                emoji: "🥦",
+                totalPrice: 3200,
+                splitPrice: 1600,
+                headcount: "1/2명 모집중",
+                expDate: "2026-09-18",
+                location: "동네 마트 앞",
+                distance: "180m",
+                verified: true,
+                author: "파릇파릇이웃",
+                temp: "37.5°C",
+                timeAgo: "5분 전"
+            },
+            {
+                id: 2,
+                title: "싱싱한 양파 한 망(10개입) 5개씩 나누실 분~",
+                category: "VEGE",
+                emoji: "🧅",
+                totalPrice: 4800,
+                splitPrice: 2400,
+                headcount: "1/2명 모집중",
+                expDate: "2026-09-25",
+                location: "주민센터 앞",
+                distance: "320m",
+                verified: true,
+                author: "자취마스터",
+                temp: "38.2°C",
+                timeAgo: "12분 전"
+            }
+        ];
+
+        let samplePosts = [];
+
+        // =========================================================================
+        // GPS & LOCATION FETCHING LOGIC (NEW)
+        // =========================================================================
+        
+        // 시작 화면의 메인 GPS 버튼
+        function tryFetchGPS() {
+            const btn = document.getElementById('mainGpsBtn');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-lg"></i><span>위치 권한 요청 중...</span>`;
+            btn.disabled = true;
+
+            executeGeolocation((successText) => {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+                directStart(successText); // 성공 시 바로 메인으로 진입
+            }, (errorMsg) => {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+                showToast(`❌ ${errorMsg} (수동 검색을 이용해주세요)`);
+                switchToManualLocation(errorMsg);
+            });
+        }
+
+        // 모달창 내부의 GPS 버튼
+        function tryFetchGPSFromModal() {
+            const btn = document.getElementById('modalGpsBtn');
+            const anim = document.getElementById('gpsPingAnim');
+            const originalHTML = btn.innerHTML;
+            
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 위치 찾는 중...`;
+            btn.disabled = true;
+            anim.classList.remove('hidden');
+
+            executeGeolocation((successText, lat, lon) => {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+                anim.classList.add('hidden');
+                
+                document.getElementById('gpsResultText').classList.remove('hidden');
+                document.getElementById('gpsResultText').innerText = `[성공] 위도:${lat.toFixed(4)}, 경도:${lon.toFixed(4)}`;
+                
+                selectLocation(successText);
+            }, (errorMsg) => {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+                anim.classList.add('hidden');
+                showToast(`❌ ${errorMsg}`);
+                switchToManualLocation(errorMsg);
+            });
+        }
+
+        // 사용자 버튼 클릭 때만 조회합니다. 자동완성·주기 조회는 하지 않습니다.
+        let gpsRequestPending = false;
+        let lastAddressRequest = 0;
+        const addressCache = new Map();
+
+        function switchToManualLocation(message) {
+            openGpsModal();
+            const result = document.getElementById('gpsResultText');
+            result.classList.remove('hidden');
+            result.innerText = `${message} 아래에서 동네 이름을 직접 입력해주세요.`;
+            document.getElementById('manualLocInput').focus();
+        }
+
+        function formatNeighborhood(address) {
+            const district = address.borough || address.city_district || address.county;
+            const neighborhood = address.quarter || address.neighbourhood || address.suburb || address.village || address.town;
+            const parts = [address.city || address.municipality || address.state, district, neighborhood];
+            return [...new Set(parts.filter(Boolean))].join(' ');
+        }
+
+        async function reverseGeocode(lat, lon) {
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new Error('좌표가 올바르지 않습니다.');
+            const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+            if (addressCache.has(key)) return addressCache.get(key);
+            const delay = Math.max(0, 1100 - (Date.now() - lastAddressRequest));
+            if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+            lastAddressRequest = Date.now();
+            const url = new URL(document.querySelector('meta[name="geocoding-endpoint"]').content);
+            url.search = new URLSearchParams({format: 'jsonv2', lat: String(lat), lon: String(lon), addressdetails: '1', zoom: '18', 'accept-language': 'ko'}).toString();
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 10000);
+            try {
+                const response = await fetch(url, {signal: controller.signal, referrerPolicy: 'strict-origin-when-cross-origin'});
+                if (!response.ok) throw new Error('주소 조회 서비스를 사용할 수 없습니다.');
+                const data = await response.json();
+                const name = formatNeighborhood(data.address || {});
+                if (data.error || !name) throw new Error('이 좌표의 동네 이름을 찾지 못했습니다.');
+                addressCache.set(key, name);
+                return name;
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
+        async function executeGeolocation(onSuccess, onError) {
+            if (gpsRequestPending) {
+                onError('이미 위치를 조회하고 있습니다. 잠시 후 다시 시도해주세요.');
+                return;
+            }
+            if (!window.isSecureContext || location.protocol === 'file:') {
+                onError('GPS는 GitHub Pages 등 HTTPS 웹페이지에서 이용해주세요.');
+                return;
+            }
+            if (!navigator.geolocation) {
+                onError('이 브라우저는 위치 조회를 지원하지 않습니다.');
+                return;
+            }
+            gpsRequestPending = true;
+            try {
+                const position = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(
+                    resolve, reject, {enableHighAccuracy: true, timeout: 15000, maximumAge: 60000}
+                ));
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                const name = await reverseGeocode(lat, lon);
+                onSuccess(name, lat, lon);
+            } catch (error) {
+                const messages = {
+                    1: '위치 정보 접근 권한이 거부되었습니다.',
+                    2: '현재 위치를 확인할 수 없습니다.',
+                    3: '위치 조회 시간이 초과되었습니다.'
+                };
+                onError(messages[error.code] || (error.name === 'AbortError' ? '동네 주소 조회 시간이 초과되었습니다.' : '동네 주소를 조회하지 못했습니다. 인터넷 연결을 확인해주세요.'));
+            } finally {
+                gpsRequestPending = false;
+            }
+        }
+
+        // =========================================================================
+        // NAVIGATION & FLOW CONTROLLER
+        // =========================================================================
+        
+        function directStart(loc) {
+            if(!loc) loc = "양천구 목동";
+            currentLoc = loc;
+            document.getElementById('currentLocDisplay').innerText = currentLoc;
+            document.getElementById('bannerLocText').innerText = currentLoc.includes("양천") ? "양천구" : "우리 동네";
+            
+            // Switch posts data based on location
+            if (currentLoc.includes("양천") || currentLoc.includes("목동") || currentLoc.includes("신정") || currentLoc.includes("신월")) {
+                samplePosts = [...yangcheonPosts];
+            } else {
+                // 양천구가 아닌 다른 지역이거나 GPS 연동 시 일반 데이터 사용
+                samplePosts = [...generalPosts];
+            }
+
+            // Switch from Step 1 to Step 2
+            document.getElementById('step1Start').classList.add('hidden');
+            document.getElementById('step2Main').classList.remove('hidden');
+            document.getElementById('step2Main').classList.add('flex');
+            
+            renderPosts();
+            showToast(`📍 [${currentLoc}] 로 설정되었습니다.`);
+        }
+
+        function setCategory(cat) {
+            activeCategory = cat;
+            const buttons = document.querySelectorAll('.cat-btn');
+            buttons.forEach(btn => {
+                btn.classList.remove('bg-brand-500', 'text-slate-950', 'font-bold');
+                btn.classList.add('bg-slate-800', 'text-slate-300');
+            });
+            event.target.classList.remove('bg-slate-800', 'text-slate-300');
+            event.target.classList.add('bg-brand-500', 'text-slate-950', 'font-bold');
+            renderPosts();
+        }
+
+        function renderPosts() {
+            const feed = document.getElementById('postFeed');
+            const searchKeyword = document.getElementById('searchInput').value.trim().toLowerCase();
+
+            let filtered = samplePosts.filter(post => {
+                const matchCategory = (activeCategory === 'ALL') || (post.category === activeCategory);
+                const matchSearch = post.title.toLowerCase().includes(searchKeyword) || post.location.toLowerCase().includes(searchKeyword);
+                return matchCategory && matchSearch;
+            });
+
+            if (filtered.length === 0) {
+                feed.innerHTML = `
+                    <div class="text-center py-12 space-y-3">
+                        <div class="text-4xl">🥦</div>
+                        <p class="text-slate-400 text-xs">${currentLoc} 주변에 찾으시는 모집글이 없어요.<br/>직접 첫 소분글을 올려보세요!</p>
+                        <button onclick="openNewPostModal()" class="px-4 py-2 bg-brand-500 text-slate-950 font-bold text-xs rounded-xl">
+                            + 글쓰기 시작하기
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            feed.innerHTML = filtered.map(post => `
+                <div onclick="openDetailChat(${post.id})" class="bg-slate-900 hover:bg-slate-800/80 border border-slate-800 rounded-2xl p-3.5 space-y-2.5 transition cursor-pointer shadow-md group">
+                    <div class="flex items-center justify-between text-[11px] text-slate-400">
+                        <div class="flex items-center gap-1.5">
+                            <span class="font-bold text-slate-200">${post.author}</span>
+                            <span class="text-brand-400 font-semibold">🌡️ ${post.temp}</span>
+                        </div>
+                        <span class="text-slate-500">${post.timeAgo} · ${post.distance}</span>
+                    </div>
+
+                    <div class="flex gap-3 items-center">
+                        <div class="w-14 h-14 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center text-3xl shrink-0 group-hover:scale-105 transition">
+                            ${post.emoji}
+                        </div>
+                        <div class="flex-1 min-w-0 space-y-1">
+                            <h3 class="font-extrabold text-sm text-slate-100 truncate group-hover:text-brand-300 transition">
+                                ${post.title}
+                            </h3>
+                            <div class="flex items-center gap-2">
+                                <span class="text-brand-400 font-black text-sm">1인당 ${post.splitPrice.toLocaleString()}원</span>
+                                <span class="text-[10px] bg-slate-950 text-slate-400 px-2 py-0.5 rounded-md border border-slate-800 font-medium">
+                                    ${post.headcount}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px]">
+                        <div class="flex items-center gap-1.5 text-slate-400">
+                            <i class="fa-solid fa-location-dot text-brand-400"></i>
+                            <span class="truncate max-w-[170px]">${post.location}</span>
+                        </div>
+                        ${post.verified ? 
+                            `<span class="text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/50 flex items-center gap-1 font-semibold">
+                                <i class="fa-solid fa-circle-check text-[9px]"></i> 영수증 인증
+                            </span>` : 
+                            `<span class="text-slate-500">일반 모집</span>`
+                        }
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // =========================================================================
+        // MODAL LOGIC & ACTIONS
+        // =========================================================================
+
+        function openGpsModal() {
+            document.getElementById('gpsModal').classList.remove('hidden');
+        }
+        function closeGpsModal() {
+            document.getElementById('gpsModal').classList.add('hidden');
+        }
+
+        function searchManualLoc() {
+            const val = document.getElementById('manualLocInput').value.trim();
+            if (val) {
+                selectLocation(val);
+            } else {
+                showToast("⚠️ 검색할 동네 이름을 입력해 주세요.");
+            }
+        }
+
+        function selectLocation(locName) {
+            currentLoc = locName;
+            document.getElementById('gpsStatusText').innerText = `선택된 동네: ${currentLoc}`;
+            showToast(`📍 [${currentLoc}] 선택 완료`);
+        }
+
+        function confirmGpsAuth() {
+            if(!currentLoc) {
+                showToast("⚠️ 동네를 먼저 선택하거나 검색해주세요.");
+                return;
+            }
+            closeGpsModal();
+            directStart(currentLoc);
+        }
+
+        // (이하 새 글 작성 및 채팅 로직은 기존과 동일)
+        function openNewPostModal() {
+            document.getElementById('newPostModal').classList.remove('hidden');
+            const nextWeek = new Date();
+            nextWeek.setDate(nextWeek.getDate() + 7);
+            document.getElementById('formExpDate').value = nextWeek.toISOString().split('T')[0];
+        }
+        function closeNewPostModal() {
+            document.getElementById('newPostModal').classList.add('hidden');
+        }
+
+        function calcSplitPrice() {
+            const total = parseInt(document.getElementById('formTotalPrice').value) || 0;
+            const count = parseInt(document.getElementById('formSplitCount').value) || 2;
+            const split = Math.round(total / count);
+            document.getElementById('calculatedPriceText').innerText = `${split.toLocaleString()} 원`;
+        }
+
+        function simulateReceiptUpload() {
+            uploadedReceipt = true;
+            document.getElementById('receiptIcon').className = "fa-solid fa-circle-check text-brand-400 text-xl mb-1";
+            document.getElementById('receiptUploadText').innerText = "영수증 인증 완료! (구매 날짜 및 가격 검증 성공)";
+            document.getElementById('receiptUploadText').className = "text-brand-300 font-bold text-[11px]";
+            showToast("🧾 영수증이 인증되었습니다!");
+        }
+
+        function handleCreatePost(e) {
+            e.preventDefault();
+            const title = document.getElementById('formTitle').value;
+            const category = document.getElementById('formCategory').value;
+            const expDate = document.getElementById('formExpDate').value;
+            const totalPrice = parseInt(document.getElementById('formTotalPrice').value);
+            const count = parseInt(document.getElementById('formSplitCount').value);
+            const splitPrice = Math.round(totalPrice / count);
+            const location = document.getElementById('formLocation').value;
+
+            const categoryEmojis = { VEGE: "🥦", FRUIT: "🍎", MEAT: "🥩", SAUCE: "🧂" };
+
+            const newPost = {
+                id: Date.now(),
+                title: title,
+                category: category,
+                emoji: categoryEmojis[category] || "🛒",
+                totalPrice: totalPrice,
+                splitPrice: splitPrice,
+                headcount: `1/${count}명 모집중`,
+                expDate: expDate,
+                location: location,
+                distance: "50m 이내",
+                verified: uploadedReceipt,
+                author: "나 (나눔이)",
+                temp: "36.5°C",
+                timeAgo: "방금 전"
+            };
+
+            samplePosts.unshift(newPost);
+            closeNewPostModal();
+            renderPosts();
+            showToast("✨ 소분 모집글이 등록되었습니다!");
+            
+            document.getElementById('postForm').reset();
+            uploadedReceipt = false;
+        }
+
+        function openDetailChat(postId) {
+            activePost = samplePosts.find(p => p.id === postId);
+            if(!activePost) return;
+
+            document.getElementById('chatHeaderTitle').innerText = activePost.title;
+            document.getElementById('chatItemEmoji').innerText = activePost.emoji;
+            document.getElementById('chatItemPrice').innerText = `1인당 ${activePost.splitPrice.toLocaleString()}원`;
+            document.getElementById('chatItemExp').innerText = `소비기한: ${activePost.expDate}`;
+            document.getElementById('chatItemLoc').innerHTML = `<i class="fa-solid fa-location-dot text-brand-400"></i> ${activePost.location}`;
+
+            const chatBox = document.getElementById('chatMessageContainer');
+            chatBox.innerHTML = `
+                <div class="text-center my-2">
+                    <span class="text-[10px] text-slate-400 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">
+                        🔒 '${activePost.author}' 님과의 안전한 동네 소분 채팅방입니다.
+                    </span>
+                </div>
+                <div class="flex items-start gap-2 max-w-[85%]">
+                    <div class="w-7 h-7 rounded-full bg-brand-500/20 text-brand-400 flex items-center justify-center font-bold text-xs shrink-0">
+                        이웃
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-2.5 text-slate-200">
+                        안녕하세요! ${activePost.title}글 보고 연락드려요. 혹시 ${activePost.location}에서 약속 가능할까요? 😊
+                    </div>
+                </div>
+            `;
+            document.getElementById('detailChatModal').classList.remove('hidden');
+        }
+
+        function closeDetailChatModal() {
+            document.getElementById('detailChatModal').classList.add('hidden');
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if(!text) return;
+
+            const chatBox = document.getElementById('chatMessageContainer');
+            const userBubble = document.createElement('div');
+            userBubble.className = "flex items-start gap-2 max-w-[85%] ml-auto flex-row-reverse";
+            userBubble.innerHTML = `
+                <div class="w-7 h-7 rounded-full bg-brand-500 text-slate-950 flex items-center justify-center font-bold text-xs shrink-0">
+                    나
+                </div>
+                <div class="bg-brand-600 text-white rounded-2xl rounded-tr-none p-2.5">
+                    ${text}
+                </div>
+            `;
+            chatBox.appendChild(userBubble);
+            input.value = '';
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            setTimeout(() => {
+                const autoReply = document.createElement('div');
+                autoReply.className = "flex items-start gap-2 max-w-[85%]";
+                autoReply.innerHTML = `
+                    <div class="w-7 h-7 rounded-full bg-brand-500/20 text-brand-400 flex items-center justify-center font-bold text-xs shrink-0">
+                        이웃
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-2.5 text-slate-200">
+                        네 좋습니다! 그럼 시간 맞춰서 나가겠습니다. 상단 [거래 완료하기] 누르고 정산해요! 👍
+                    </div>
+                `;
+                chatBox.appendChild(autoReply);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }, 1000);
+        }
+
+        function triggerCompleteTrade() {
+            closeDetailChatModal();
+            if(activePost) {
+                document.getElementById('resultItemName').innerText = activePost.title;
+                document.getElementById('resultSavedMoney').innerText = `${(activePost.totalPrice - activePost.splitPrice).toLocaleString()} 원`;
+                document.getElementById('resultPartnerName').innerText = activePost.author;
+            }
+            document.getElementById('step2Main').classList.add('hidden');
+            document.getElementById('step3Result').classList.remove('hidden');
+            document.getElementById('step3Result').classList.add('flex');
+            if (window.confetti) {
+                confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+            }
+        }
+
+        function setRating(stars) {
+            const starElements = document.querySelectorAll('#starContainer i');
+            starElements.forEach((star, idx) => {
+                if (idx < stars) {
+                    star.className = "fa-solid fa-star cursor-pointer text-amber-400 hover:scale-110 transition";
+                } else {
+                    star.className = "fa-regular fa-star cursor-pointer text-slate-600 hover:scale-110 transition";
+                }
+            });
+            showToast(`⭐ ${stars}점 평점이 반영되었습니다.`);
+        }
+
+        function toggleBadge(btn) {
+            const check = btn.querySelector('.check-icon');
+            if (btn.classList.contains('border-brand-500')) {
+                btn.classList.remove('border-brand-500', 'bg-brand-950/40');
+                btn.classList.add('border-slate-800', 'bg-slate-950');
+                check.className = "fa-solid fa-check text-slate-600 check-icon";
+            } else {
+                btn.classList.add('border-brand-500', 'bg-brand-950/40');
+                btn.classList.remove('border-slate-800', 'bg-slate-950');
+                check.className = "fa-solid fa-check text-brand-400 check-icon";
+            }
+        }
+
+        function finishEvaluation() {
+            showToast("🎉 소분 거래 및 신뢰도 평가가 저장되었습니다!");
+            document.getElementById('step3Result').classList.add('hidden');
+            document.getElementById('step2Main').classList.remove('hidden');
+            document.getElementById('step2Main').classList.add('flex');
+            renderPosts();
+        }
+
+        function showMascotTip() {
+            showToast("🥦 반반이 팁: 내 위치를 GPS로 인증하면 더 가까운 동네 이웃의 글이 상단에 뜹니다!");
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 2500);
+        }
+    </script>
+</body>
+</html>
